@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "trade",
+  "version": "${version}",
+  "name": "Trade",
+  "description": "A server-sided trade mod for Fabric",
+  "authors": [
+    "BorisShoes"
+  ],
+  "contact": {
+    "repo": "https://github.com/borisshoes/fabric-trade"
+  },
+  "license": "MIT",
+  "icon": "assets/trade/icon.png",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "net.borisshoes.trade.Trade"
+    ]
+  },
+  "mixins": [
+    "trade.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.14.9",
+    "fabric": "*",
+    "minecraft": "1.19.2"
+  }
+}
