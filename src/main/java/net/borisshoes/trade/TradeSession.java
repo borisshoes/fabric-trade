@@ -9,6 +9,7 @@ import net.borisshoes.trade.utils.Utils;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.screen.ScreenHandlerType;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -275,9 +276,10 @@ public class TradeSession {
    
          guiFrom.close();
          guiTo.close();
-   
-         Utils.playSongToPlayer(tFrom, SoundEvents.BLOCK_FIRE_EXTINGUISH,1f,.5f);
-         Utils.playSongToPlayer(tTo, SoundEvents.BLOCK_FIRE_EXTINGUISH,1f,.5f);
+         
+         
+         Utils.playSongToPlayer(tFrom, RegistryEntry.of(SoundEvents.BLOCK_FIRE_EXTINGUISH) ,1f,.5f);
+         Utils.playSongToPlayer(tTo, RegistryEntry.of(SoundEvents.BLOCK_FIRE_EXTINGUISH),1f,.5f);
       }
    }
 }

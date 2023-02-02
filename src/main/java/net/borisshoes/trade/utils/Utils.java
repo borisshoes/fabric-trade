@@ -1,6 +1,7 @@
 package net.borisshoes.trade.utils;
 
 import net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
@@ -14,7 +15,7 @@ public class Utils {
       return MutableText.of(new LiteralTextContent(text)).setStyle(formatting != null ? Style.EMPTY.withFormatting(formatting) : Style.EMPTY);
    }
    
-   public static void playSongToPlayer(ServerPlayerEntity player, SoundEvent event, float vol, float pitch) {
+   public static void playSongToPlayer(ServerPlayerEntity player, RegistryEntry<SoundEvent> event, float vol, float pitch) {
       player.networkHandler.sendPacket(new PlaySoundS2CPacket(event, SoundCategory.PLAYERS, player.getPos().x,player.getPos().y, player.getPos().z, vol, pitch, 0));
    }
 }
