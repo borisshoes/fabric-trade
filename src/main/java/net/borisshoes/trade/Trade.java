@@ -49,8 +49,8 @@ public class Trade implements ModInitializer {
       ServerCommandSource scs = context.getSource();
       
       List<String> activeTargets = Stream.concat(
-            activeTrades.stream().map(tpaRequest -> tpaRequest.tTo.getName().getString()),
-            activeTrades.stream().map(tpaRequest -> tpaRequest.tFrom.getName().getString())
+            activeTrades.stream().map(tradeRequest -> tradeRequest.tTo.getName().getString()),
+            activeTrades.stream().map(tradeRequest -> tradeRequest.tFrom.getName().getString())
       ).collect(Collectors.toList());
       List<String> others = Arrays.stream(scs.getServer().getPlayerNames())
             .filter(s -> !s.equals(scs.getName()) && !activeTargets.contains(s))
@@ -59,12 +59,12 @@ public class Trade implements ModInitializer {
    }
    
    private CompletableFuture<Suggestions> getTradeTargetSuggestions(CommandContext<ServerCommandSource> context, SuggestionsBuilder builder) {
-      List<String> activeTargets = activeTrades.stream().map(tpaRequest -> tpaRequest.tFrom.getName().getString()).collect(Collectors.toList());
+      List<String> activeTargets = activeTrades.stream().map(tradeRequest -> tradeRequest.tFrom.getName().getString()).collect(Collectors.toList());
       return filterSuggestionsByInput(builder, activeTargets);
    }
    
    private CompletableFuture<Suggestions> getTradeSenderSuggestions(CommandContext<ServerCommandSource> context, SuggestionsBuilder builder) {
-      List<String> activeTargets = activeTrades.stream().map(tpaRequest -> tpaRequest.tTo.getName().getString()).collect(Collectors.toList());
+      List<String> activeTargets = activeTrades.stream().map(tradeRequest -> tradeRequest.tTo.getName().getString()).collect(Collectors.toList());
       return filterSuggestionsByInput(builder, activeTargets);
    }
    
@@ -275,7 +275,6 @@ public class Trade implements ModInitializer {
          tTo = candidates[0].tTo;
       }
       
-      System.out.printf("%s -> %s\n", tFrom.getName().getString(), tTo.getName().getString());
       TradeRequest tr = getTradeRequest(tFrom, tTo, TradeAction.CANCEL);
       if (tr == null) return 1;
       tr.cancelTimeout();
