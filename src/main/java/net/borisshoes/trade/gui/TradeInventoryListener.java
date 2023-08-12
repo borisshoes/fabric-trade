@@ -18,12 +18,6 @@ public class TradeInventoryListener implements InventoryChangedListener {
    public void onInventoryChanged(Inventory inv){
       if(!updating){
          updating = true;
-         for(int i = 0; i < 24; i++){
-            ItemStack stack = inv.getStack(i);
-            if(stack.getCount() != 0){
-               //System.out.println("Slot " + i + ": " + stack.getItem().getName().getString() + " (" + stack.getCount() + ")");
-            }
-         }
          session.checkReadyStatus();
          session.updateGuis();
          
