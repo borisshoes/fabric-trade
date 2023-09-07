@@ -1,7 +1,9 @@
 package net.borisshoes.trade;
 
 import com.mojang.authlib.GameProfile;
+import eu.pb4.sgui.api.GuiHelpers;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
+import eu.pb4.sgui.api.gui.GuiInterface;
 import net.borisshoes.trade.gui.TradeGui;
 import net.borisshoes.trade.gui.TradeInventory;
 import net.borisshoes.trade.gui.TradeInventoryListener;
@@ -67,6 +69,15 @@ public class TradeSession {
       guiFrom.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(MutableText.of(new LiteralTextContent("Waiting for player...")).formatted(Formatting.RED)));
       fromReady = false;
       toReady = false;
+      
+      GuiInterface curToGui = GuiHelpers.getCurrentGui(tTo);
+      if(curToGui != null){
+         curToGui.close();
+      }
+      GuiInterface curFromGui = GuiHelpers.getCurrentGui(tFrom);
+      if(curFromGui != null){
+         curFromGui.close();
+      }
       
       guiFrom.open();
       guiTo.open();
