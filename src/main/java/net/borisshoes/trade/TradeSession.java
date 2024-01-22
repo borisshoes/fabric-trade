@@ -16,8 +16,7 @@ import net.minecraft.screen.ScreenHandlerType;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.LiteralTextContent;
-import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 import java.util.Timer;
@@ -54,8 +53,8 @@ public class TradeSession {
    
       guiFrom = new TradeGui(ScreenHandlerType.GENERIC_9X6,tFrom,this);
       guiTo = new TradeGui(ScreenHandlerType.GENERIC_9X6,tTo,this);
-      guiFrom.setTitle(MutableText.of(new LiteralTextContent("Trading with "+tTo.getEntityName())));
-      guiTo.setTitle(MutableText.of(new LiteralTextContent("Trading with "+tFrom.getEntityName())));
+      guiFrom.setTitle(Text.literal("Trading with "+tTo.getNameForScoreboard()));
+      guiTo.setTitle(Text.literal("Trading with "+tFrom.getNameForScoreboard()));
       
       for(int i=0; i<12;i++){
          guiFrom.setSlotRedirect(yourSlots[i], new Slot(inv,i,0,0));
@@ -63,10 +62,10 @@ public class TradeSession {
       }
    
       buildBorder();
-      guiTo.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(MutableText.of(new LiteralTextContent("Confirm")).formatted(Formatting.RED)));
-      guiFrom.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(MutableText.of(new LiteralTextContent("Confirm")).formatted(Formatting.RED)));
-      guiTo.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(MutableText.of(new LiteralTextContent("Waiting for player...")).formatted(Formatting.RED)));
-      guiFrom.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(MutableText.of(new LiteralTextContent("Waiting for player...")).formatted(Formatting.RED)));
+      guiTo.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Confirm").formatted(Formatting.RED)));
+      guiFrom.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Confirm").formatted(Formatting.RED)));
+      guiTo.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Waiting for player...").formatted(Formatting.RED)));
+      guiFrom.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Waiting for player...").formatted(Formatting.RED)));
       fromReady = false;
       toReady = false;
       
@@ -96,25 +95,25 @@ public class TradeSession {
    
    public void buildBorder(){
       for(int i=0;i<borderSlots.length;i++){
-         guiFrom.setSlot(borderSlots[i],new GuiElementBuilder(Items.BLACK_STAINED_GLASS_PANE).setName(MutableText.of(LiteralTextContent.EMPTY)));
-         guiTo.setSlot(borderSlots[i],new GuiElementBuilder(Items.BLACK_STAINED_GLASS_PANE).setName(MutableText.of(LiteralTextContent.EMPTY)));
+         guiFrom.setSlot(borderSlots[i],new GuiElementBuilder(Items.BLACK_STAINED_GLASS_PANE).setName(Text.empty()));
+         guiTo.setSlot(borderSlots[i],new GuiElementBuilder(Items.BLACK_STAINED_GLASS_PANE).setName(Text.empty()));
       }
       for(int i=0;i<middleSlots.length;i++){
-         guiFrom.setSlot(middleSlots[i],new GuiElementBuilder(Items.IRON_BARS).setName(MutableText.of(LiteralTextContent.EMPTY)));
-         guiTo.setSlot(middleSlots[i],new GuiElementBuilder(Items.IRON_BARS).setName(MutableText.of(LiteralTextContent.EMPTY)));
+         guiFrom.setSlot(middleSlots[i],new GuiElementBuilder(Items.IRON_BARS).setName(Text.empty()));
+         guiTo.setSlot(middleSlots[i],new GuiElementBuilder(Items.IRON_BARS).setName(Text.empty()));
       }
       GameProfile fromProfile = new GameProfile(tFrom.getUuid(),null);
       GuiElementBuilder fromHead = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(fromProfile,tFrom.server);
-      guiFrom.setSlot(2,fromHead.setName((MutableText.of(new LiteralTextContent("Your Items")))));
-      guiTo.setSlot(6,fromHead.setName((MutableText.of(new LiteralTextContent(tFrom.getEntityName()+"'s Items")))));
+      guiFrom.setSlot(2,fromHead.setName((Text.literal("Your Items"))));
+      guiTo.setSlot(6,fromHead.setName((Text.literal(tFrom.getNameForScoreboard()+"'s Items"))));
    
       GameProfile toProfile = new GameProfile(tTo.getUuid(),null);
       GuiElementBuilder toHead = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(toProfile,tTo.server);
-      guiTo.setSlot(2,toHead.setName((MutableText.of(new LiteralTextContent("Your Items")))));
-      guiFrom.setSlot(6,toHead.setName((MutableText.of(new LiteralTextContent(tTo.getEntityName()+"'s Items")))));
+      guiTo.setSlot(2,toHead.setName((Text.literal("Your Items"))));
+      guiFrom.setSlot(6,toHead.setName((Text.literal(tTo.getNameForScoreboard()+"'s Items"))));
    
-      guiTo.setSlot(49,new GuiElementBuilder(Items.BARRIER).setName(MutableText.of(new LiteralTextContent("Cancel Trade")).formatted(Formatting.DARK_RED,Formatting.BOLD)));
-      guiFrom.setSlot(49,new GuiElementBuilder(Items.BARRIER).setName(MutableText.of(new LiteralTextContent("Cancel Trade")).formatted(Formatting.DARK_RED,Formatting.BOLD)));
+      guiTo.setSlot(49,new GuiElementBuilder(Items.BARRIER).setName(Text.literal("Cancel Trade").formatted(Formatting.DARK_RED,Formatting.BOLD)));
+      guiFrom.setSlot(49,new GuiElementBuilder(Items.BARRIER).setName(Text.literal("Cancel Trade").formatted(Formatting.DARK_RED,Formatting.BOLD)));
    }
    
    public void updateGuis(){
@@ -157,10 +156,10 @@ public class TradeSession {
    }
    
    public void setUnready(){
-      guiTo.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(MutableText.of(new LiteralTextContent("Confirm")).formatted(Formatting.RED)));
-      guiFrom.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(MutableText.of(new LiteralTextContent("Confirm")).formatted(Formatting.RED)));
-      guiTo.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(MutableText.of(new LiteralTextContent("Waiting for player...")).formatted(Formatting.RED)));
-      guiFrom.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(MutableText.of(new LiteralTextContent("Waiting for player...")).formatted(Formatting.RED)));
+      guiTo.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Confirm").formatted(Formatting.RED)));
+      guiFrom.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Confirm").formatted(Formatting.RED)));
+      guiTo.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Waiting for player...").formatted(Formatting.RED)));
+      guiFrom.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Waiting for player...").formatted(Formatting.RED)));
       fromReady = false;
       toReady = false;
       Utils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_HAT,1f,.5f);
@@ -169,8 +168,8 @@ public class TradeSession {
    
    public void setReady(ServerPlayerEntity player){
       if(player.equals(tFrom)&&!fromReady){
-         guiFrom.setSlot(9,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(MutableText.of(new LiteralTextContent("Confirmed!")).formatted(Formatting.GREEN)));
-         guiTo.setSlot(17,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(MutableText.of(new LiteralTextContent("Player Ready!")).formatted(Formatting.GREEN)));
+         guiFrom.setSlot(9,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(Text.literal("Confirmed!").formatted(Formatting.GREEN)));
+         guiTo.setSlot(17,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(Text.literal("Player Ready!").formatted(Formatting.GREEN)));
          fromReady = true;
          Utils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_PLING,1f,1f);
          Utils.playSongToPlayer(tTo, SoundEvents.BLOCK_NOTE_BLOCK_PLING,1f,2f);
@@ -178,8 +177,8 @@ public class TradeSession {
             readyState[i] = inv.getStack(i);
          }
       }else if(player.equals(tTo)&&!toReady){
-         guiTo.setSlot(9,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(MutableText.of(new LiteralTextContent("Confirmed!")).formatted(Formatting.GREEN)));
-         guiFrom.setSlot(17,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(MutableText.of(new LiteralTextContent("Player Ready!")).formatted(Formatting.GREEN)));
+         guiTo.setSlot(9,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(Text.literal("Confirmed!").formatted(Formatting.GREEN)));
+         guiFrom.setSlot(17,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(Text.literal("Player Ready!").formatted(Formatting.GREEN)));
          toReady = true;
          Utils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_PLING,1f,2f);
          Utils.playSongToPlayer(tTo, SoundEvents.BLOCK_NOTE_BLOCK_PLING,1f,1f);
@@ -239,8 +238,8 @@ public class TradeSession {
          }
       }
       
-      tFrom.sendMessage(MutableText.of(new LiteralTextContent("Trade Completed!")).formatted(Formatting.GREEN), false);
-      tTo.sendMessage(MutableText.of(new LiteralTextContent("Trade Completed!")).formatted(Formatting.GREEN), false);
+      tFrom.sendMessage(Text.literal("Trade Completed!").formatted(Formatting.GREEN), false);
+      tTo.sendMessage(Text.literal("Trade Completed!").formatted(Formatting.GREEN), false);
       closing = true;
       guiFrom.close();
       guiTo.close();
@@ -280,10 +279,10 @@ public class TradeSession {
             }
          }
          
-         player.sendMessage(MutableText.of(new LiteralTextContent("You have cancelled the trade request!")).formatted(Formatting.RED), false);
+         player.sendMessage(Text.literal("You have cancelled the trade request!").formatted(Formatting.RED), false);
          ServerPlayerEntity other = player.equals(tFrom) ? tTo : tFrom;
-         other.sendMessage(MutableText.of(new LiteralTextContent(player.getName().getString())).formatted(Formatting.AQUA)
-               .append(MutableText.of(new LiteralTextContent(" has cancelled the trade request!")).formatted(Formatting.RED)), false);
+         other.sendMessage(Text.literal(player.getName().getString()).formatted(Formatting.AQUA)
+               .append(Text.literal(" has cancelled the trade request!").formatted(Formatting.RED)), false);
    
          guiFrom.close();
          guiTo.close();

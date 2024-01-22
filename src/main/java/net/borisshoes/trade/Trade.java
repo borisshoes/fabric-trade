@@ -134,7 +134,7 @@ public class Trade implements ModInitializer {
       final ServerPlayerEntity tFrom = ctx.getSource().getPlayer();
       
       if (tFrom.equals(tTo)) {
-         tFrom.sendMessage(MutableText.of(new LiteralTextContent("You cannot request to trade with yourself!")).formatted(Formatting.RED), false);
+         tFrom.sendMessage(Text.literal("You cannot request to trade with yourself!").formatted(Formatting.RED), false);
          return 1;
       }
       
@@ -142,41 +142,41 @@ public class Trade implements ModInitializer {
       
       TradeRequest tr = new TradeRequest(tFrom, tTo, (int) config.getValue("timeout") * 1000);
       if (activeTrades.stream().anyMatch(tpaRequest -> tpaRequest.equals(tr))) {
-         tFrom.sendMessage(MutableText.of(new LiteralTextContent("There is already an ongoing request like this!")).formatted(Formatting.RED), false);
+         tFrom.sendMessage(Text.literal("There is already an ongoing request like this!").formatted(Formatting.RED), false);
          return 1;
       }
       tr.setTimeoutCallback(() -> {
          activeTrades.remove(tr);
-         tFrom.sendMessage(MutableText.of(new LiteralTextContent("Your trade request to " + tTo.getName().getString() + " has timed out!")).formatted(Formatting.RED), false);
-         tTo.sendMessage(MutableText.of(new LiteralTextContent("Trade request from " + tFrom.getName().getString() + " has timed out!")).formatted(Formatting.RED), false);
+         tFrom.sendMessage(Text.literal("Your trade request to " + tTo.getName().getString() + " has timed out!").formatted(Formatting.RED), false);
+         tTo.sendMessage(Text.literal("Trade request from " + tFrom.getName().getString() + " has timed out!").formatted(Formatting.RED), false);
       });
       activeTrades.add(tr);
       
       tFrom.sendMessage(
-            MutableText.of(new LiteralTextContent("You have requested to trade with ")).formatted(Formatting.GREEN)
-                  .append(MutableText.of(new LiteralTextContent(tTo.getName().getString())).formatted(Formatting.AQUA))
-                  .append(MutableText.of(new LiteralTextContent("\nTo cancel type ")).formatted(Formatting.GREEN))
-                  .append(MutableText.of(new LiteralTextContent("/tradecancel [<player>]")).styled(s ->
+            Text.literal("You have requested to trade with ").formatted(Formatting.GREEN)
+                  .append(Text.literal(tTo.getName().getString()).formatted(Formatting.AQUA))
+                  .append(Text.literal("\nTo cancel type ").formatted(Formatting.GREEN))
+                  .append(Text.literal("/tradecancel [<player>]").styled(s ->
                         s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tradecancel " + tTo.getName().getString()))
-                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, MutableText.of(new LiteralTextContent("/tradecancel " + tTo.getName().getString()))))
+                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("/tradecancel " + tTo.getName().getString())))
                               .withColor(Formatting.GOLD)))
-                  .append(MutableText.of(new LiteralTextContent("\nThis request will timeout in " + config.getValue("timeout") + " seconds.")).formatted(Formatting.GREEN)),
+                  .append(Text.literal("\nThis request will timeout in " + config.getValue("timeout") + " seconds.").formatted(Formatting.GREEN)),
             false);
       
       tTo.sendMessage(
-            MutableText.of(new LiteralTextContent(tFrom.getName().getString())).formatted(Formatting.AQUA)
-                  .append(MutableText.of(new LiteralTextContent(" has requested to trade with you!")).formatted(Formatting.GREEN))
-                  .append(MutableText.of(new LiteralTextContent("\nTo accept type ")).formatted(Formatting.GREEN))
-                  .append(MutableText.of(new LiteralTextContent("/tradeaccept [<player>]")).styled(s ->
+            Text.literal(tFrom.getName().getString()).formatted(Formatting.AQUA)
+                  .append(Text.literal(" has requested to trade with you!").formatted(Formatting.GREEN))
+                  .append(Text.literal("\nTo accept type ").formatted(Formatting.GREEN))
+                  .append(Text.literal("/tradeaccept [<player>]").styled(s ->
                         s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tradeaccept " + tFrom.getName().getString()))
-                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, MutableText.of(new LiteralTextContent("/tradeaccept " + tFrom.getName().getString()))))
+                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("/tradeaccept " + tFrom.getName().getString())))
                               .withColor(Formatting.GOLD)))
-                  .append(MutableText.of(new LiteralTextContent("\nTo deny type ")).formatted(Formatting.GREEN))
-                  .append(MutableText.of(new LiteralTextContent("/tradedeny [<player>]")).styled(s ->
+                  .append(Text.literal("\nTo deny type ").formatted(Formatting.GREEN))
+                  .append(Text.literal("/tradedeny [<player>]").styled(s ->
                         s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tradedeny " + tFrom.getName().getString()))
-                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, MutableText.of(new LiteralTextContent("/tradedeny " + tFrom.getName().getString()))))
+                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("/tradedeny " + tFrom.getName().getString())))
                               .withColor(Formatting.GOLD)))
-                  .append(MutableText.of(new LiteralTextContent("\nThis request will timeout in " + config.getValue("timeout") + " seconds.")).formatted(Formatting.GREEN)),
+                  .append(Text.literal("\nThis request will timeout in " + config.getValue("timeout") + " seconds.").formatted(Formatting.GREEN)),
             false);
       return 1;
    }
@@ -188,17 +188,17 @@ public class Trade implements ModInitializer {
          TradeRequest[] candidates;
          candidates = activeTrades.stream().filter(tpaRequest -> tpaRequest.tTo.equals(tTo)).toArray(TradeRequest[]::new);
          if (candidates.length > 1) {
-            MutableText text = MutableText.of(new LiteralTextContent("You currently have multiple active trade requests! Please specify whose request to accept.\n")).formatted(Formatting.GREEN);
+            MutableText text = Text.literal("You currently have multiple active trade requests! Please specify whose request to accept.\n").formatted(Formatting.GREEN);
             Arrays.stream(candidates).map(tpaRequest -> tpaRequest.tFrom.getName().getString()).forEach(name ->
-                  text.append(MutableText.of(new LiteralTextContent(name)).styled(s ->
+                  text.append(Text.literal(name).styled(s ->
                         s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tradeaccept " + name))
-                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, MutableText.of(new LiteralTextContent("/tradeaccept " + name))))
+                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("/tradeaccept " + name)))
                               .withColor(Formatting.GOLD))).append(" "));
             tTo.sendMessage(text, false);
             return 1;
          }
          if (candidates.length < 1) {
-            tTo.sendMessage(MutableText.of(new LiteralTextContent("You currently don't have any trade requests!")).formatted(Formatting.RED), false);
+            tTo.sendMessage(Text.literal("You currently don't have any trade requests!").formatted(Formatting.RED), false);
             return 1;
          }
          tFrom = candidates[0].tFrom;
@@ -212,9 +212,9 @@ public class Trade implements ModInitializer {
       
       tr.cancelTimeout();
       activeTrades.remove(tr);
-      tr.tTo.sendMessage(MutableText.of(new LiteralTextContent("You have accepted the trade request!")), false);
-      tr.tFrom.sendMessage(MutableText.of(new LiteralTextContent(tr.tTo.getName().getString())).formatted(Formatting.AQUA)
-            .append(MutableText.of(new LiteralTextContent(" has accepted the trade request!")).formatted(Formatting.GREEN)), false);
+      tr.tTo.sendMessage(Text.literal("You have accepted the trade request!"), false);
+      tr.tFrom.sendMessage(Text.literal(tr.tTo.getName().getString()).formatted(Formatting.AQUA)
+            .append(Text.literal(" has accepted the trade request!").formatted(Formatting.GREEN)), false);
       return 1;
    }
    
@@ -226,17 +226,17 @@ public class Trade implements ModInitializer {
          TradeRequest[] candidates;
          candidates = activeTrades.stream().filter(tpaRequest -> tpaRequest.tTo.equals(tTo)).toArray(TradeRequest[]::new);
          if (candidates.length > 1) {
-            MutableText text = MutableText.of(new LiteralTextContent("You currently have multiple active trade requests! Please specify whose request to deny.\n")).formatted(Formatting.GREEN);
+            MutableText text = Text.literal("You currently have multiple active trade requests! Please specify whose request to deny.\n").formatted(Formatting.GREEN);
             Arrays.stream(candidates).map(tpaRequest -> tpaRequest.tFrom.getName().getString()).forEach(name ->
-                  text.append(MutableText.of(new LiteralTextContent(name)).styled(s ->
+                  text.append(Text.literal(name).styled(s ->
                         s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tradedeny " + name))
-                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, MutableText.of(new LiteralTextContent("/tradedeny " + name))))
+                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("/tradedeny " + name)))
                               .withColor(Formatting.GOLD))).append(" "));
             tTo.sendMessage(text, false);
             return 1;
          }
          if (candidates.length < 1) {
-            tTo.sendMessage(MutableText.of(new LiteralTextContent("You currently don't have any trade requests!")).formatted(Formatting.RED), false);
+            tTo.sendMessage(Text.literal("You currently don't have any trade requests!").formatted(Formatting.RED), false);
             return 1;
          }
          tFrom = candidates[0].tFrom;
@@ -246,9 +246,9 @@ public class Trade implements ModInitializer {
       if (tr == null) return 1;
       tr.cancelTimeout();
       activeTrades.remove(tr);
-      tr.tTo.sendMessage(MutableText.of(new LiteralTextContent("You have cancelled the trade request!")), false);
-      tr.tFrom.sendMessage(MutableText.of(new LiteralTextContent(tr.tTo.getName().getString())).formatted(Formatting.AQUA)
-            .append(MutableText.of(new LiteralTextContent(" has cancelled the trade request!")).formatted(Formatting.RED)), false);
+      tr.tTo.sendMessage(Text.literal("You have cancelled the trade request!"), false);
+      tr.tFrom.sendMessage(Text.literal(tr.tTo.getName().getString()).formatted(Formatting.AQUA)
+            .append(Text.literal(" has cancelled the trade request!").formatted(Formatting.RED)), false);
       return 1;
    }
    
@@ -259,17 +259,17 @@ public class Trade implements ModInitializer {
          TradeRequest[] candidates;
          candidates = activeTrades.stream().filter(tpaRequest -> tpaRequest.tFrom.equals(tFrom)).toArray(TradeRequest[]::new);
          if (candidates.length > 1) {
-            MutableText text = MutableText.of(new LiteralTextContent("You currently have multiple active trade requests! Please specify which request to cancel.\n")).formatted(Formatting.GREEN);
+            MutableText text = Text.literal("You currently have multiple active trade requests! Please specify which request to cancel.\n").formatted(Formatting.GREEN);
             Arrays.stream(candidates).map(tpaRequest -> tpaRequest.tTo.getName().getString()).forEach(name ->
-                  text.append(MutableText.of(new LiteralTextContent(name)).styled(s ->
+                  text.append(Text.literal(name).styled(s ->
                         s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tradecancel " + name))
-                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, MutableText.of(new LiteralTextContent("/tradecancel " + name))))
+                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("/tradecancel " + name)))
                               .withColor(Formatting.GOLD))).append(" "));
             tFrom.sendMessage(text, false);
             return 1;
          }
          if (candidates.length < 1) {
-            tFrom.sendMessage(MutableText.of(new LiteralTextContent("You currently don't have any trade requests!")).formatted(Formatting.RED), false);
+            tFrom.sendMessage(Text.literal("You currently don't have any trade requests!").formatted(Formatting.RED), false);
             return 1;
          }
          tTo = candidates[0].tTo;
@@ -279,9 +279,9 @@ public class Trade implements ModInitializer {
       if (tr == null) return 1;
       tr.cancelTimeout();
       activeTrades.remove(tr);
-      tr.tFrom.sendMessage(MutableText.of(new LiteralTextContent("You have cancelled the trade request!")).formatted(Formatting.RED), false);
-      tr.tTo.sendMessage(MutableText.of(new LiteralTextContent(tr.tFrom.getName().getString())).formatted(Formatting.AQUA)
-            .append(MutableText.of(new LiteralTextContent(" has cancelled the trade request!")).formatted(Formatting.RED)), false);
+      tr.tFrom.sendMessage(Text.literal("You have cancelled the trade request!").formatted(Formatting.RED), false);
+      tr.tTo.sendMessage(Text.literal(tr.tFrom.getName().getString()).formatted(Formatting.AQUA)
+            .append(Text.literal(" has cancelled the trade request!").formatted(Formatting.RED)), false);
       return 1;
    }
    
@@ -291,9 +291,9 @@ public class Trade implements ModInitializer {
       
       if (otr.isEmpty()) {
          if (action == TradeAction.CANCEL) {
-            tFrom.sendMessage(MutableText.of(new LiteralTextContent("No ongoing request!")).formatted(Formatting.RED), false);
+            tFrom.sendMessage(Text.literal("No ongoing request!").formatted(Formatting.RED), false);
          } else {
-            tTo.sendMessage(MutableText.of(new LiteralTextContent("No ongoing request!")).formatted(Formatting.RED), false);
+            tTo.sendMessage(Text.literal("No ongoing request!").formatted(Formatting.RED), false);
          }
          return null;
       }
@@ -306,7 +306,7 @@ public class Trade implements ModInitializer {
       if (recentRequests.containsKey(tFrom.getUuid())) {
          long diff = Instant.now().getEpochSecond() - recentRequests.get(tFrom.getUuid());
          if (diff < (int) config.getValue("cooldown")) {
-            tFrom.sendMessage(MutableText.of(new LiteralTextContent("You cannot make a trade request for ")).append(String.valueOf((int) config.getValue("cooldown") - diff))
+            tFrom.sendMessage(Text.literal("You cannot make a trade request for ").append(String.valueOf((int) config.getValue("cooldown") - diff))
                   .append(" more seconds!").formatted(Formatting.RED), false);
             return true;
          }

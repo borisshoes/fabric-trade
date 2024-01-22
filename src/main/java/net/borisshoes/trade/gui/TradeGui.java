@@ -48,7 +48,7 @@ public class TradeGui extends SimpleGui {
    
    @Override
    public void onClose(){
-      //MutableText text = MutableText.of(new LiteralTextContent(player.getEntityName()+" has cancelled the trade.");
+      //MutableText text = Text.literal(player.getEntityName()+" has cancelled the trade.");
       //player.server.sendSystemMessage(text,player.getUuid());
       session.cancelTrade(player);
    }
