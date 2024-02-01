@@ -102,12 +102,13 @@ public class TradeSession {
          guiFrom.setSlot(middleSlots[i],new GuiElementBuilder(Items.IRON_BARS).setName(Text.empty()));
          guiTo.setSlot(middleSlots[i],new GuiElementBuilder(Items.IRON_BARS).setName(Text.empty()));
       }
-      GameProfile fromProfile = new GameProfile(tFrom.getUuid(),null);
+      
+      GameProfile fromProfile = tFrom.getGameProfile();
       GuiElementBuilder fromHead = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(fromProfile,tFrom.server);
       guiFrom.setSlot(2,fromHead.setName((Text.literal("Your Items"))));
       guiTo.setSlot(6,fromHead.setName((Text.literal(tFrom.getNameForScoreboard()+"'s Items"))));
    
-      GameProfile toProfile = new GameProfile(tTo.getUuid(),null);
+      GameProfile toProfile = tTo.getGameProfile();
       GuiElementBuilder toHead = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(toProfile,tTo.server);
       guiTo.setSlot(2,toHead.setName((Text.literal("Your Items"))));
       guiFrom.setSlot(6,toHead.setName((Text.literal(tTo.getNameForScoreboard()+"'s Items"))));

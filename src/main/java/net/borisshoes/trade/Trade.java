@@ -318,7 +318,7 @@ public class Trade implements ModInitializer {
       ACCEPT, DENY, CANCEL
    }
    
-   static class TradeRequest {
+   public static class TradeRequest {
       ServerPlayerEntity tFrom;
       ServerPlayerEntity tTo;
       
