@@ -38,6 +38,43 @@ public class Trade implements ModInitializer {
    private final HashMap<UUID, Long> recentRequests = new HashMap<>();
    private ConfigUtils config;
    
+   @Override
+   public void onInitialize(){
+      logger.info("Initializing Trade...");
+      
+      config = new ConfigUtils(FabricLoader.getInstance().getConfigDir().resolve(CONFIG_NAME).toFile(), logger, Arrays.asList(new ConfigUtils.IConfigValue[] {
+            new ConfigUtils.IntegerConfigValue("timeout", 60, new ConfigUtils.IntegerConfigValue.IntLimits(0),
+                  new ConfigUtils.Command("Timeout is %s seconds", "Timeout set to %s seconds")),
+            new ConfigUtils.IntegerConfigValue("cooldown", 60, new ConfigUtils.IntegerConfigValue.IntLimits(0),
+                  new ConfigUtils.Command("Cooldown is %s seconds", "Cooldown set to %s seconds")),
+            new CooldownModeConfigValue("cooldown-mode", TradeCooldownMode.WhoInitiated,
+                  new ConfigUtils.Command("Cooldown Mode is %s", "Cooldown Mode set to %s"))
+      }));
+      
+      CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, registrationEnvironment) -> {
+         dispatcher.register(literal("trade")
+               .then(argument("target", EntityArgumentType.player()).suggests(this::getTradeInitSuggestions)
+                     .executes(ctx -> tradeInit(ctx, getPlayer(ctx, "target")))));
+         
+         dispatcher.register(literal("tradeaccept")
+               .then(argument("target", EntityArgumentType.player()).suggests(this::getTradeTargetSuggestions)
+                     .executes(ctx -> tradeAccept(ctx, getPlayer(ctx, "target"))))
+               .executes(ctx -> tradeAccept(ctx, null)));
+         
+         dispatcher.register(literal("tradedeny")
+               .then(argument("target", EntityArgumentType.player()).suggests(this::getTradeTargetSuggestions)
+                     .executes(ctx -> tradeDeny(ctx, getPlayer(ctx, "target"))))
+               .executes(ctx -> tradeDeny(ctx, null)));
+         
+         dispatcher.register(literal("tradecancel")
+               .then(argument("target", EntityArgumentType.player()).suggests(this::getTradeSenderSuggestions)
+                     .executes(ctx -> tradeCancel(ctx, getPlayer(ctx, "target"))))
+               .executes(ctx -> tradeCancel(ctx, null)));
+         
+         dispatcher.register(config.generateCommand("tradeconfig"));
+      });
+   }
+   
    @Nullable
    private static CompletableFuture<Suggestions> filterSuggestionsByInput(SuggestionsBuilder builder, List<String> values) {
       String start = builder.getRemaining().toLowerCase();
@@ -90,44 +127,6 @@ public class Trade implements ModInitializer {
       public TradeCooldownMode parseArgumentValue(CommandContext<ServerCommandSource> ctx) {
          return TradeCooldownMode.valueOf(StringArgumentType.getString(ctx, name));
       }
-   }
-   
-   @Override
-   public void onInitialize(){
-      logger.info("Initializing Trade...");
-   
-      config = new ConfigUtils(FabricLoader.getInstance().getConfigDir().resolve(CONFIG_NAME).toFile(), logger, Arrays.asList(new ConfigUtils.IConfigValue[] {
-            new ConfigUtils.IntegerConfigValue("timeout", 60, new ConfigUtils.IntegerConfigValue.IntLimits(0),
-                  new ConfigUtils.Command("Timeout is %s seconds", "Timeout set to %s seconds")),
-            new ConfigUtils.IntegerConfigValue("cooldown", 60, new ConfigUtils.IntegerConfigValue.IntLimits(0),
-                  new ConfigUtils.Command("Cooldown is %s seconds", "Cooldown set to %s seconds")),
-            new CooldownModeConfigValue("cooldown-mode", TradeCooldownMode.WhoInitiated,
-                  new ConfigUtils.Command("Cooldown Mode is %s", "Cooldown Mode set to %s"))
-      }));
-   
-      CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, registrationEnvironment) -> {
-         dispatcher.register(literal("trade")
-               .then(argument("target", EntityArgumentType.player()).suggests(this::getTradeInitSuggestions)
-                     .executes(ctx -> tradeInit(ctx, getPlayer(ctx, "target")))));
-      
-         dispatcher.register(literal("tradeaccept")
-               .then(argument("target", EntityArgumentType.player()).suggests(this::getTradeTargetSuggestions)
-                     .executes(ctx -> tradeAccept(ctx, getPlayer(ctx, "target"))))
-               .executes(ctx -> tradeAccept(ctx, null)));
-      
-         dispatcher.register(literal("tradedeny")
-               .then(argument("target", EntityArgumentType.player()).suggests(this::getTradeTargetSuggestions)
-                     .executes(ctx -> tradeDeny(ctx, getPlayer(ctx, "target"))))
-               .executes(ctx -> tradeDeny(ctx, null)));
-         
-         dispatcher.register(literal("tradecancel")
-               .then(argument("target", EntityArgumentType.player()).suggests(this::getTradeSenderSuggestions)
-                     .executes(ctx -> tradeCancel(ctx, getPlayer(ctx, "target"))))
-               .executes(ctx -> tradeCancel(ctx, null)));
-      
-         dispatcher.register(config.generateCommand("tradeconfig"));
-      });
-      
    }
    
    public int tradeInit(CommandContext<ServerCommandSource> ctx, ServerPlayerEntity tTo) throws CommandSyntaxException {
