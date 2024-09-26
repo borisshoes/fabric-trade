@@ -262,20 +262,24 @@ public class TradeSession {
                }else{
                   player1 = tFrom;
                }
-         
-               ItemEntity itemEntity;
-               boolean bl = player1.getInventory().insertStack(stack);
-               if (!bl || !stack.isEmpty()) {
+               
+               if(player1.isDisconnected()){
+                  player1.dropItem(stack, false);
+               }else{
+                  ItemEntity itemEntity;
+                  boolean bl = player1.getInventory().insertStack(stack);
+                  if (!bl || !stack.isEmpty()) {
+                     itemEntity = player1.dropItem(stack, false);
+                     if (itemEntity == null) continue;
+                     itemEntity.resetPickupDelay();
+                     itemEntity.setOwner(player1.getUuid());
+                     continue;
+                  }
+                  stack.setCount(1);
                   itemEntity = player1.dropItem(stack, false);
-                  if (itemEntity == null) continue;
-                  itemEntity.resetPickupDelay();
-                  itemEntity.setOwner(player1.getUuid());
-                  continue;
-               }
-               stack.setCount(1);
-               itemEntity = player1.dropItem(stack, false);
-               if (itemEntity != null) {
-                  itemEntity.setDespawnImmediately();
+                  if (itemEntity != null) {
+                     itemEntity.setDespawnImmediately();
+                  }
                }
             }
          }
