@@ -3,7 +3,6 @@ package net.borisshoes.trade.gui;
 import net.borisshoes.trade.TradeSession;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.InventoryChangedListener;
-import net.minecraft.item.ItemStack;
 
 public class TradeInventoryListener implements InventoryChangedListener {
    

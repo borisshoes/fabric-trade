@@ -13,7 +13,10 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.*;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -40,8 +43,8 @@ public class Trade implements ModInitializer {
    
    @Nullable
    private static CompletableFuture<Suggestions> filterSuggestionsByInput(SuggestionsBuilder builder, List<String> values) {
-      String start = builder.getRemaining().toLowerCase();
-      values.stream().filter(s -> s.toLowerCase().startsWith(start)).forEach(builder::suggest);
+      String start = builder.getRemaining().toLowerCase(Locale.ROOT);
+      values.stream().filter(s -> s.toLowerCase(Locale.ROOT).startsWith(start)).forEach(builder::suggest);
       return builder.buildFuture();
    }
    
