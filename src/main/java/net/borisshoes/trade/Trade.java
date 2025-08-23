@@ -371,8 +371,8 @@ public class Trade implements ModInitializer {
       }
       
       public void refreshPlayers() {
-         this.tFrom = tFrom.server.getPlayerManager().getPlayer(tFrom.getUuid());
-         this.tTo = tTo.server.getPlayerManager().getPlayer(tTo.getUuid());
+         this.tFrom = tFrom.getServer().getPlayerManager().getPlayer(tFrom.getUuid());
+         this.tTo = tTo.getServer().getPlayerManager().getPlayer(tTo.getUuid());
          assert tFrom != null && tTo != null;
       }
    }

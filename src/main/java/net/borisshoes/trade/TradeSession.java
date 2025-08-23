@@ -104,12 +104,12 @@ public class TradeSession {
       }
       
       GameProfile fromProfile = tFrom.getGameProfile();
-      GuiElementBuilder fromHead = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(fromProfile,tFrom.server);
+      GuiElementBuilder fromHead = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(fromProfile,tFrom.getServer());
       guiFrom.setSlot(2,fromHead.setName((Text.literal("Your Items"))));
       guiTo.setSlot(6,fromHead.setName((Text.literal(tFrom.getNameForScoreboard()+"'s Items"))));
    
       GameProfile toProfile = tTo.getGameProfile();
-      GuiElementBuilder toHead = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(toProfile,tTo.server);
+      GuiElementBuilder toHead = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(toProfile,tTo.getServer());
       guiTo.setSlot(2,toHead.setName((Text.literal("Your Items"))));
       guiFrom.setSlot(6,toHead.setName((Text.literal(tTo.getNameForScoreboard()+"'s Items"))));
    
