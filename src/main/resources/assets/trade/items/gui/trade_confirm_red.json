@@ -1,0 +1,6 @@
+{
+    "model": {
+        "type": "minecraft:model",
+        "model": "trade:item/gui/trade_confirm_red"
+    }
+}

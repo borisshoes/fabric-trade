@@ -1,16 +1,25 @@
 package net.borisshoes.trade;
 
-import com.mojang.brigadier.arguments.ArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import net.borisshoes.trade.utils.ConfigUtils;
+import com.mojang.serialization.Lifecycle;
+import eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils;
+import net.borisshoes.borislib.config.ConfigManager;
+import net.borisshoes.borislib.config.ConfigSetting;
+import net.borisshoes.borislib.config.IConfigSetting;
+import net.borisshoes.borislib.config.values.EnumConfigValue;
+import net.borisshoes.borislib.config.values.IntConfigValue;
+import net.borisshoes.borislib.gui.GraphicalItem;
+import net.borisshoes.borislib.utils.TextUtils;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.command.argument.EntityArgumentType;
+import net.minecraft.item.Items;
+import net.minecraft.registry.Registry;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.SimpleRegistry;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.ClickEvent;
@@ -18,9 +27,10 @@ import net.minecraft.text.HoverEvent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.StringIdentifiable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
@@ -29,6 +39,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static net.borisshoes.borislib.BorisLib.registerGraphicItem;
 import static net.minecraft.command.argument.EntityArgumentType.getPlayer;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
@@ -36,10 +47,29 @@ import static net.minecraft.server.command.CommandManager.literal;
 public class Trade implements ModInitializer {
    private static final Logger logger = LogManager.getLogger("Trade");
    private static final String CONFIG_NAME = "Trade.properties";
+   public static final String MOD_ID = "trade";
+   public static final Registry<IConfigSetting<?>> CONFIG_SETTINGS = new SimpleRegistry<>(RegistryKey.ofRegistry(Identifier.of(MOD_ID,"config_settings")), Lifecycle.stable());
+   private static final ArrayList<TradeRequest> ACTIVE_TRADES = new ArrayList<>();
+   private static final HashMap<UUID, Long> RECENT_REQUESTS = new HashMap<>();
+   public static ConfigManager CONFIG;
    
-   private final ArrayList<TradeRequest> activeTrades = new ArrayList<>();
-   private final HashMap<UUID, Long> recentRequests = new HashMap<>();
-   private ConfigUtils config;
+   public static final IConfigSetting<?> TIMEOUT_CFG = registerConfigSetting(new ConfigSetting<>(
+         new IntConfigValue("timeout", 60, new IntConfigValue.IntLimits(0))));
+   
+   public static final IConfigSetting<?> COOLDOWN_CFG = registerConfigSetting(new ConfigSetting<>(
+         new IntConfigValue("cooldown", 60, new IntConfigValue.IntLimits(0))));
+   
+   public static final IConfigSetting<?> COOLDOWN_MODE_CFG = registerConfigSetting(new ConfigSetting<>(
+         new EnumConfigValue<>("cooldown-mode", TradeCooldownMode.WHO_INITIATED, TradeCooldownMode.class)));
+   
+   private static IConfigSetting<?> registerConfigSetting(IConfigSetting<?> setting){
+      Registry.register(CONFIG_SETTINGS,Identifier.of(MOD_ID,setting.getId()),setting);
+      return setting;
+   }
+   
+   public static final GraphicalItem.GraphicElement GREEN_CONFIRM = registerGraphicItem(new GraphicalItem.GraphicElement(Identifier.of(MOD_ID, "trade_confirm_green"), Items.GREEN_CONCRETE, false));
+   public static final GraphicalItem.GraphicElement YELLOW_CONFIRM = registerGraphicItem(new GraphicalItem.GraphicElement(Identifier.of(MOD_ID, "trade_confirm_yellow"), Items.YELLOW_CONCRETE, false));
+   public static final GraphicalItem.GraphicElement RED_CONFIRM = registerGraphicItem(new GraphicalItem.GraphicElement(Identifier.of(MOD_ID, "trade_confirm_red"), Items.RED_CONCRETE, false));
    
    @Nullable
    private static CompletableFuture<Suggestions> filterSuggestionsByInput(SuggestionsBuilder builder, List<String> values) {
@@ -52,9 +82,9 @@ public class Trade implements ModInitializer {
       ServerCommandSource scs = context.getSource();
       
       List<String> activeTargets = Stream.concat(
-            activeTrades.stream().map(tradeRequest -> tradeRequest.tTo.getName().getString()),
-            activeTrades.stream().map(tradeRequest -> tradeRequest.tFrom.getName().getString())
-      ).collect(Collectors.toList());
+            ACTIVE_TRADES.stream().map(tradeRequest -> tradeRequest.tTo.getName().getString()),
+            ACTIVE_TRADES.stream().map(tradeRequest -> tradeRequest.tFrom.getName().getString())
+      ).toList();
       List<String> others = Arrays.stream(scs.getServer().getPlayerNames())
             .filter(s -> !s.equals(scs.getName()) && !activeTargets.contains(s))
             .collect(Collectors.toList());
@@ -62,54 +92,22 @@ public class Trade implements ModInitializer {
    }
    
    private CompletableFuture<Suggestions> getTradeTargetSuggestions(CommandContext<ServerCommandSource> context, SuggestionsBuilder builder) {
-      List<String> activeTargets = activeTrades.stream().map(tradeRequest -> tradeRequest.tFrom.getName().getString()).collect(Collectors.toList());
+      List<String> activeTargets = ACTIVE_TRADES.stream().map(tradeRequest -> tradeRequest.tFrom.getName().getString()).collect(Collectors.toList());
       return filterSuggestionsByInput(builder, activeTargets);
    }
    
    private CompletableFuture<Suggestions> getTradeSenderSuggestions(CommandContext<ServerCommandSource> context, SuggestionsBuilder builder) {
-      List<String> activeTargets = activeTrades.stream().map(tradeRequest -> tradeRequest.tTo.getName().getString()).collect(Collectors.toList());
+      List<String> activeTargets = ACTIVE_TRADES.stream().map(tradeRequest -> tradeRequest.tTo.getName().getString()).collect(Collectors.toList());
       return filterSuggestionsByInput(builder, activeTargets);
-   }
-   
-   static class CooldownModeConfigValue extends ConfigUtils.IConfigValue<TradeCooldownMode> {
-      public CooldownModeConfigValue(@NotNull String name, TradeCooldownMode defaultValue, @Nullable ConfigUtils.Command command) {
-         super(name, defaultValue, null, command, (context, builder) -> {
-            List<String> tcmValues = Arrays.stream(TradeCooldownMode.values()).map(String::valueOf).collect(Collectors.toList());
-            return filterSuggestionsByInput(builder, tcmValues);
-         });
-      }
-      
-      @Override
-      public TradeCooldownMode getFromProps(Properties props) {
-         return TradeCooldownMode.valueOf(props.getProperty(name));
-      }
-      
-      @Override
-      public ArgumentType<?> getArgumentType() {
-         return StringArgumentType.string();
-      }
-      
-      @Override
-      public TradeCooldownMode parseArgumentValue(CommandContext<ServerCommandSource> ctx) {
-         return TradeCooldownMode.valueOf(StringArgumentType.getString(ctx, name));
-      }
    }
    
    @Override
    public void onInitialize(){
       logger.info("Initializing Trade...");
-   
-      config = new ConfigUtils(FabricLoader.getInstance().getConfigDir().resolve(CONFIG_NAME).toFile(), logger, Arrays.asList(new ConfigUtils.IConfigValue[] {
-            new ConfigUtils.IntegerConfigValue("timeout", 60, new ConfigUtils.IntegerConfigValue.IntLimits(0),
-                  new ConfigUtils.Command("Timeout is %s seconds", "Timeout set to %s seconds")),
-            new ConfigUtils.IntegerConfigValue("cooldown", 60, new ConfigUtils.IntegerConfigValue.IntLimits(0),
-                  new ConfigUtils.Command("Cooldown is %s seconds", "Cooldown set to %s seconds")),
-            new CooldownModeConfigValue("cooldown-mode", TradeCooldownMode.WhoInitiated,
-                  new ConfigUtils.Command("Cooldown Mode is %s", "Cooldown Mode set to %s"))
-      }));
-   
+      CONFIG = new ConfigManager(MOD_ID,"Trade",CONFIG_NAME,CONFIG_SETTINGS);
+      
       CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, registrationEnvironment) -> {
-         dispatcher.register(literal("trade")
+         dispatcher.register(literal("trade").executes(Trade::openTradeSelector)
                .then(argument("target", EntityArgumentType.player()).suggests(this::getTradeInitSuggestions)
                      .executes(ctx -> tradeInit(ctx, getPlayer(ctx, "target")))));
       
@@ -127,71 +125,95 @@ public class Trade implements ModInitializer {
                .then(argument("target", EntityArgumentType.player()).suggests(this::getTradeSenderSuggestions)
                      .executes(ctx -> tradeCancel(ctx, getPlayer(ctx, "target"))))
                .executes(ctx -> tradeCancel(ctx, null)));
-      
-         dispatcher.register(config.generateCommand("tradeconfig"));
+         
+         dispatcher.register(CONFIG.generateCommand("trademod","config"));
       });
       
+      PolymerResourcePackUtils.addModAssets(MOD_ID);
    }
    
-   public int tradeInit(CommandContext<ServerCommandSource> ctx, ServerPlayerEntity tTo) throws CommandSyntaxException {
+   private static int openTradeSelector(CommandContext<ServerCommandSource> ctx){
+      final ServerPlayerEntity trader = ctx.getSource().getPlayer();
+      if(trader == null){
+         ctx.getSource().sendMessage(Text.translatable("text.trade.must_be_player").formatted(Formatting.RED));
+         return -1;
+      }
+      TradeSelectionGui gui = new TradeSelectionGui(trader);
+      return 1;
+   }
+   
+   public static int tradeInit(CommandContext<ServerCommandSource> ctx, ServerPlayerEntity tTo) throws CommandSyntaxException {
       final ServerPlayerEntity tFrom = ctx.getSource().getPlayer();
+      if(tFrom == null){
+         ctx.getSource().sendMessage(Text.translatable("text.trade.must_be_player").formatted(Formatting.RED));
+         return -1;
+      }
+      return tradeInit(tFrom,tTo);
+   }
+   
+   public static int tradeInit(ServerPlayerEntity tFrom, ServerPlayerEntity tTo){
+      if(tFrom == null){
+         return -1;
+      }
       
       if (tFrom.equals(tTo)) {
-         tFrom.sendMessage(Text.literal("You cannot request to trade with yourself!").formatted(Formatting.RED), false);
-         return 1;
+         tFrom.sendMessage(Text.translatable("text.trade.cannot_trade_self").formatted(Formatting.RED), false);
+         return -1;
       }
       
       if (checkCooldown(tFrom)) return 1;
       
-      TradeRequest tr = new TradeRequest(tFrom, tTo, (int) config.getValue("timeout") * 1000);
-      if (activeTrades.stream().anyMatch(tpaRequest -> tpaRequest.equals(tr))) {
-         tFrom.sendMessage(Text.literal("There is already an ongoing request like this!").formatted(Formatting.RED), false);
-         return 1;
+      TradeRequest tr = new TradeRequest(tFrom, tTo, CONFIG.getInt(TIMEOUT_CFG) * 1000);
+      if (ACTIVE_TRADES.stream().anyMatch(tpaRequest -> tpaRequest.equals(tr))) {
+         tFrom.sendMessage(Text.translatable("text.trade.already_requested").formatted(Formatting.RED), false);
+         return -1;
       }
       tr.setTimeoutCallback(() -> {
-         activeTrades.remove(tr);
-         tFrom.sendMessage(Text.literal("Your trade request to " + tTo.getName().getString() + " has timed out!").formatted(Formatting.RED), false);
-         tTo.sendMessage(Text.literal("Trade request from " + tFrom.getName().getString() + " has timed out!").formatted(Formatting.RED), false);
+         ACTIVE_TRADES.remove(tr);
+         tFrom.sendMessage(Text.translatable("text.trade.trade_to_timeout",tTo.getName().getString()).formatted(Formatting.RED), false);
+         tTo.sendMessage(Text.translatable("text.trade.trade_from_timeout",tFrom.getName().getString()).formatted(Formatting.RED), false);
       });
-      activeTrades.add(tr);
+      ACTIVE_TRADES.add(tr);
       
-      tFrom.sendMessage(
-            Text.literal("You have requested to trade with ").formatted(Formatting.GREEN)
-                  .append(Text.literal(tTo.getName().getString()).formatted(Formatting.AQUA))
-                  .append(Text.literal("\nTo cancel type ").formatted(Formatting.GREEN))
-                  .append(Text.literal("/tradecancel [<player>]").styled(s ->
+      tFrom.sendMessage(Text.translatable("text.trade.you_requested",
+                  Text.literal(tTo.getName().getString()).formatted(Formatting.AQUA),
+                  Text.literal("/tradecancel [<player>]").styled(s ->
                         s.withClickEvent(new ClickEvent.RunCommand("/tradecancel " + tTo.getName().getString()))
                               .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tradecancel " + tTo.getName().getString())))
-                              .withColor(Formatting.GOLD)))
-                  .append(Text.literal("\nThis request will timeout in " + config.getValue("timeout") + " seconds.").formatted(Formatting.GREEN)),
+                              .withColor(Formatting.GOLD)),
+                  Text.literal(TextUtils.readableInt(CONFIG.getInt(TIMEOUT_CFG)))
+            ).formatted(Formatting.GREEN),
             false);
       
       tTo.sendMessage(
-            Text.literal(tFrom.getName().getString()).formatted(Formatting.AQUA)
-                  .append(Text.literal(" has requested to trade with you!").formatted(Formatting.GREEN))
-                  .append(Text.literal("\nTo accept type ").formatted(Formatting.GREEN))
-                  .append(Text.literal("/tradeaccept [<player>]").styled(s ->
+            Text.translatable("text.trade.they_requested",
+                  Text.literal(tFrom.getName().getString()).formatted(Formatting.AQUA),
+                  Text.literal("/tradeaccept [<player>]").styled(s ->
                         s.withClickEvent(new ClickEvent.RunCommand("/tradeaccept " + tFrom.getName().getString()))
                               .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tradeaccept " + tFrom.getName().getString())))
-                              .withColor(Formatting.GOLD)))
-                  .append(Text.literal("\nTo deny type ").formatted(Formatting.GREEN))
-                  .append(Text.literal("/tradedeny [<player>]").styled(s ->
+                              .withColor(Formatting.GOLD)),
+                  Text.literal("/tradedeny [<player>]").styled(s ->
                         s.withClickEvent(new ClickEvent.RunCommand("/tradedeny " + tFrom.getName().getString()))
                               .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tradedeny " + tFrom.getName().getString())))
-                              .withColor(Formatting.GOLD)))
-                  .append(Text.literal("\nThis request will timeout in " + config.getValue("timeout") + " seconds.").formatted(Formatting.GREEN)),
+                              .withColor(Formatting.GOLD)),
+                  Text.literal(TextUtils.readableInt(CONFIG.getInt(TIMEOUT_CFG)))
+            ).formatted(Formatting.GREEN),
             false);
       return 1;
    }
    
-   public int tradeAccept(CommandContext<ServerCommandSource> ctx, ServerPlayerEntity tFrom) throws CommandSyntaxException {
+   public static int tradeAccept(CommandContext<ServerCommandSource> ctx, ServerPlayerEntity tFrom) throws CommandSyntaxException {
       final ServerPlayerEntity tTo = ctx.getSource().getPlayer();
+      if(tTo == null){
+         ctx.getSource().sendMessage(Text.translatable("text.trade.must_be_player").formatted(Formatting.RED));
+         return -1;
+      }
       
       if (tFrom == null) {
          TradeRequest[] candidates;
-         candidates = activeTrades.stream().filter(tpaRequest -> tpaRequest.tTo.equals(tTo)).toArray(TradeRequest[]::new);
+         candidates = ACTIVE_TRADES.stream().filter(tpaRequest -> tpaRequest.tTo.equals(tTo)).toArray(TradeRequest[]::new);
          if (candidates.length > 1) {
-            MutableText text = Text.literal("You currently have multiple active trade requests! Please specify whose request to accept.\n").formatted(Formatting.GREEN);
+            MutableText text = Text.translatable("text.trade.accept_specify").append(Text.literal("\n")).formatted(Formatting.GREEN);
             Arrays.stream(candidates).map(tpaRequest -> tpaRequest.tFrom.getName().getString()).forEach(name ->
                   text.append(Text.literal(name).styled(s ->
                         s.withClickEvent(new ClickEvent.RunCommand("/tradeaccept " + name))
@@ -201,7 +223,7 @@ public class Trade implements ModInitializer {
             return 1;
          }
          if (candidates.length < 1) {
-            tTo.sendMessage(Text.literal("You currently don't have any trade requests!").formatted(Formatting.RED), false);
+            tTo.sendMessage(Text.translatable("text.trade.no_requests").formatted(Formatting.RED), false);
             return 1;
          }
          tFrom = candidates[0].tFrom;
@@ -211,25 +233,25 @@ public class Trade implements ModInitializer {
       if (tr == null) return 1;
       
       // Do the trade thing
-      new TradeSession(tFrom,tTo,tr,this);
+      new TradeSession(tFrom,tTo,tr);
       
       tr.cancelTimeout();
-      activeTrades.remove(tr);
-      tr.tTo.sendMessage(Text.literal("You have accepted the trade request!"), false);
-      tr.tFrom.sendMessage(Text.literal(tr.tTo.getName().getString()).formatted(Formatting.AQUA)
-            .append(Text.literal(" has accepted the trade request!").formatted(Formatting.GREEN)), false);
+      ACTIVE_TRADES.remove(tr);
+      
+      tr.tTo.sendMessage(Text.translatable("text.trade.you_accept"), false);
+      tr.tFrom.sendMessage(Text.translatable("text.trade.they_accept",Text.literal(tr.tTo.getName().getString()).formatted(Formatting.AQUA)).formatted(Formatting.GREEN), false);
       return 1;
    }
    
    
-   public int tradeDeny(CommandContext<ServerCommandSource> ctx, ServerPlayerEntity tFrom) throws CommandSyntaxException{
+   public static int tradeDeny(CommandContext<ServerCommandSource> ctx, ServerPlayerEntity tFrom) throws CommandSyntaxException{
       final ServerPlayerEntity tTo = ctx.getSource().getPlayer();
       
       if (tFrom == null) {
          TradeRequest[] candidates;
-         candidates = activeTrades.stream().filter(tpaRequest -> tpaRequest.tTo.equals(tTo)).toArray(TradeRequest[]::new);
+         candidates = ACTIVE_TRADES.stream().filter(tpaRequest -> tpaRequest.tTo.equals(tTo)).toArray(TradeRequest[]::new);
          if (candidates.length > 1) {
-            MutableText text = Text.literal("You currently have multiple active trade requests! Please specify whose request to deny.\n").formatted(Formatting.GREEN);
+            MutableText text = Text.translatable("text.trade.deny_specify").append(Text.literal("\n")).formatted(Formatting.GREEN);
             Arrays.stream(candidates).map(tpaRequest -> tpaRequest.tFrom.getName().getString()).forEach(name ->
                   text.append(Text.literal(name).styled(s ->
                         s.withClickEvent(new ClickEvent.RunCommand("/tradedeny " + name))
@@ -239,7 +261,7 @@ public class Trade implements ModInitializer {
             return 1;
          }
          if (candidates.length < 1) {
-            tTo.sendMessage(Text.literal("You currently don't have any trade requests!").formatted(Formatting.RED), false);
+            tTo.sendMessage(Text.translatable("text.trade.no_requests").formatted(Formatting.RED), false);
             return 1;
          }
          tFrom = candidates[0].tFrom;
@@ -248,21 +270,21 @@ public class Trade implements ModInitializer {
       TradeRequest tr = getTradeRequest(tFrom, tTo, TradeAction.DENY);
       if (tr == null) return 1;
       tr.cancelTimeout();
-      activeTrades.remove(tr);
-      tr.tTo.sendMessage(Text.literal("You have cancelled the trade request!"), false);
-      tr.tFrom.sendMessage(Text.literal(tr.tTo.getName().getString()).formatted(Formatting.AQUA)
-            .append(Text.literal(" has cancelled the trade request!").formatted(Formatting.RED)), false);
+      ACTIVE_TRADES.remove(tr);
+      tr.tTo.sendMessage(Text.translatable("gui.trade.you_cancelled"), false);
+      tr.tFrom.sendMessage(Text.translatable("gui.trade.they_cancelled",Text.literal(tr.tTo.getName().getString()).formatted(Formatting.AQUA)).formatted(Formatting.RED), false);
       return 1;
    }
    
-   public int tradeCancel(CommandContext<ServerCommandSource> ctx, ServerPlayerEntity tTo) throws CommandSyntaxException {
+   public static int tradeCancel(CommandContext<ServerCommandSource> ctx, ServerPlayerEntity tTo) throws CommandSyntaxException {
       final ServerPlayerEntity tFrom = ctx.getSource().getPlayer();
       
       if (tTo == null) {
          TradeRequest[] candidates;
-         candidates = activeTrades.stream().filter(tpaRequest -> tpaRequest.tFrom.equals(tFrom)).toArray(TradeRequest[]::new);
+         candidates = ACTIVE_TRADES.stream().filter(tpaRequest -> tpaRequest.tFrom.equals(tFrom)).toArray(TradeRequest[]::new);
          if (candidates.length > 1) {
-            MutableText text = Text.literal("You currently have multiple active trade requests! Please specify which request to cancel.\n").formatted(Formatting.GREEN);
+            
+            MutableText text = Text.translatable("text.trade.cancel_specify").append(Text.literal("\n")).formatted(Formatting.GREEN);
             Arrays.stream(candidates).map(tpaRequest -> tpaRequest.tTo.getName().getString()).forEach(name ->
                   text.append(Text.literal(name).styled(s ->
                         s.withClickEvent(new ClickEvent.RunCommand("/tradecancel " + name))
@@ -272,7 +294,7 @@ public class Trade implements ModInitializer {
             return 1;
          }
          if (candidates.length < 1) {
-            tFrom.sendMessage(Text.literal("You currently don't have any trade requests!").formatted(Formatting.RED), false);
+            tFrom.sendMessage(Text.translatable("text.trade.no_requests").formatted(Formatting.RED), false);
             return 1;
          }
          tTo = candidates[0].tTo;
@@ -281,22 +303,21 @@ public class Trade implements ModInitializer {
       TradeRequest tr = getTradeRequest(tFrom, tTo, TradeAction.CANCEL);
       if (tr == null) return 1;
       tr.cancelTimeout();
-      activeTrades.remove(tr);
-      tr.tFrom.sendMessage(Text.literal("You have cancelled the trade request!").formatted(Formatting.RED), false);
-      tr.tTo.sendMessage(Text.literal(tr.tFrom.getName().getString()).formatted(Formatting.AQUA)
-            .append(Text.literal(" has cancelled the trade request!").formatted(Formatting.RED)), false);
+      ACTIVE_TRADES.remove(tr);
+      tr.tFrom.sendMessage(Text.translatable("gui.trade.you_cancelled").formatted(Formatting.RED), false);
+      tr.tTo.sendMessage(Text.translatable("gui.trade.they_cancelled",Text.literal(tr.tFrom.getName().getString()).formatted(Formatting.AQUA)).formatted(Formatting.RED), false);
       return 1;
    }
    
-   private TradeRequest getTradeRequest(ServerPlayerEntity tFrom, ServerPlayerEntity tTo, TradeAction action) {
-      Optional<TradeRequest> otr = activeTrades.stream()
+   private static TradeRequest getTradeRequest(ServerPlayerEntity tFrom, ServerPlayerEntity tTo, TradeAction action) {
+      Optional<TradeRequest> otr = ACTIVE_TRADES.stream()
             .filter(tpaRequest -> tpaRequest.tFrom.equals(tFrom) && tpaRequest.tTo.equals(tTo)).findFirst();
       
       if (otr.isEmpty()) {
          if (action == TradeAction.CANCEL) {
-            tFrom.sendMessage(Text.literal("No ongoing request!").formatted(Formatting.RED), false);
+            tFrom.sendMessage(Text.translatable("text.trade.no_request").formatted(Formatting.RED), false);
          } else {
-            tTo.sendMessage(Text.literal("No ongoing request!").formatted(Formatting.RED), false);
+            tTo.sendMessage(Text.translatable("text.trade.no_request").formatted(Formatting.RED), false);
          }
          return null;
       }
@@ -305,12 +326,11 @@ public class Trade implements ModInitializer {
    }
    
    
-   private boolean checkCooldown(ServerPlayerEntity tFrom) {
-      if (recentRequests.containsKey(tFrom.getUuid())) {
-         long diff = Instant.now().getEpochSecond() - recentRequests.get(tFrom.getUuid());
-         if (diff < (int) config.getValue("cooldown")) {
-            tFrom.sendMessage(Text.literal("You cannot make a trade request for ").append(String.valueOf((int) config.getValue("cooldown") - diff))
-                  .append(" more seconds!").formatted(Formatting.RED), false);
+   private static boolean checkCooldown(ServerPlayerEntity tFrom) {
+      if (RECENT_REQUESTS.containsKey(tFrom.getUuid())) {
+         long diff = Instant.now().getEpochSecond() - RECENT_REQUESTS.get(tFrom.getUuid());
+         if (diff < CONFIG.getInt(COOLDOWN_CFG)) {
+            tFrom.sendMessage(Text.translatable("text.trade.on_cooldown", TextUtils.readableInt((int) (CONFIG.getInt(COOLDOWN_CFG) - diff))).formatted(Formatting.RED), false);
             return true;
          }
       }
@@ -371,27 +391,38 @@ public class Trade implements ModInitializer {
       }
       
       public void refreshPlayers() {
-         this.tFrom = tFrom.getServer().getPlayerManager().getPlayer(tFrom.getUuid());
-         this.tTo = tTo.getServer().getPlayerManager().getPlayer(tTo.getUuid());
+         this.tFrom = tFrom.getEntityWorld().getServer().getPlayerManager().getPlayer(tFrom.getUuid());
+         this.tTo = tTo.getEntityWorld().getServer().getPlayerManager().getPlayer(tTo.getUuid());
          assert tFrom != null && tTo != null;
       }
    }
    
-   enum TradeCooldownMode {
-      WhoInitiated, BothUsers
+   enum TradeCooldownMode implements StringIdentifiable {
+      WHO_INITIATED("WHO_INITIATED"), BOTH_USERS("BOTH_USERS");
+      
+      private final String name;
+      
+      TradeCooldownMode(String name){
+         this.name = name;
+      }
+      
+      @Override
+      public String asString(){
+         return name;
+      }
    }
    
    interface Timeout {
       void onTimeout();
    }
    
-   public void completeSession(ServerPlayerEntity tFrom, ServerPlayerEntity tTo, TradeRequest tr){
-      switch ((TradeCooldownMode) config.getValue("cooldown-mode")) {
-         case BothUsers -> {
-            recentRequests.put(tr.tFrom.getUuid(), Instant.now().getEpochSecond());
-            recentRequests.put(tr.tTo.getUuid(), Instant.now().getEpochSecond());
+   public static void completeSession(TradeRequest tr){
+      switch ((TradeCooldownMode) CONFIG.getValue(COOLDOWN_MODE_CFG.getName())) {
+         case BOTH_USERS -> {
+            RECENT_REQUESTS.put(tr.tFrom.getUuid(), Instant.now().getEpochSecond());
+            RECENT_REQUESTS.put(tr.tTo.getUuid(), Instant.now().getEpochSecond());
          }
-         case WhoInitiated -> recentRequests.put(tr.tFrom.getUuid(), Instant.now().getEpochSecond());
+         case WHO_INITIATED -> RECENT_REQUESTS.put(tr.tFrom.getUuid(), Instant.now().getEpochSecond());
       }
    }
 }

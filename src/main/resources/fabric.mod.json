@@ -12,7 +12,7 @@
   },
   "license": "OSL-3.0",
   "icon": "assets/trade/icon.png",
-  "environment": "server",
+  "environment": "*",
   "entrypoints": {
     "main": [
       "net.borisshoes.trade.Trade"

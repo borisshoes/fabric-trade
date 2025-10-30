@@ -4,11 +4,13 @@ import com.mojang.authlib.GameProfile;
 import eu.pb4.sgui.api.GuiHelpers;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.GuiInterface;
-import net.borisshoes.trade.gui.TradeGui;
-import net.borisshoes.trade.gui.TradeInventory;
-import net.borisshoes.trade.gui.TradeInventoryListener;
-import net.borisshoes.trade.utils.Utils;
+import net.borisshoes.borislib.gui.GraphicalItem;
+import net.borisshoes.borislib.gui.GuiHelper;
+import net.borisshoes.borislib.utils.SoundUtils;
 import net.minecraft.entity.ItemEntity;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.inventory.InventoryChangedListener;
+import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.registry.entry.RegistryEntry;
@@ -22,12 +24,11 @@ import net.minecraft.util.Formatting;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class TradeSession {
+public class TradeSession implements InventoryChangedListener {
    private final ServerPlayerEntity tFrom,tTo;
    private final Trade.TradeRequest tr;
    private final TradeGui guiFrom,guiTo;
-   private final TradeInventory inv;
-   private final TradeInventoryListener listener;
+   private final SimpleInventory inv;
    private final int[] yourSlots = {10,11,12,19,20,21,28,29,30,37,38,39};
    private final int[] theirSlots = {14,15,16,23,24,25,32,33,34,41,42,43};
    private final int[] borderSlots = {0,1,3,4,5,7,8,45,46,47,48,50,51,52,53,18,27,36,26,35,44};
@@ -35,37 +36,38 @@ public class TradeSession {
    private boolean closing = false;
    private boolean fromReady = false;
    private boolean toReady = false;
+   private boolean updating = false;
    private final ItemStack[] readyState;
-   private final Trade main;
    
-   public TradeSession(ServerPlayerEntity tFrom, ServerPlayerEntity tTo, Trade.TradeRequest tr, Trade main){
+   public TradeSession(ServerPlayerEntity tFrom, ServerPlayerEntity tTo, Trade.TradeRequest tr){
       this.tFrom = tFrom;
       this.tTo = tTo;
       this.tr = tr;
-      this.main = main;
       
-      inv = new TradeInventory();
-      listener = new TradeInventoryListener(this);
-      inv.addListener(listener);
+      inv = new SimpleInventory(24);
+      inv.addListener(this);
       
       readyState = new ItemStack[24];
       for(int i = 0; i<24;i++){readyState[i]=ItemStack.EMPTY;}
    
       guiFrom = new TradeGui(ScreenHandlerType.GENERIC_9X6,tFrom,this);
       guiTo = new TradeGui(ScreenHandlerType.GENERIC_9X6,tTo,this);
-      guiFrom.setTitle(Text.literal("Trading with "+tTo.getNameForScoreboard()));
-      guiTo.setTitle(Text.literal("Trading with "+tFrom.getNameForScoreboard()));
+      guiFrom.setTitle(Text.translatable("gui.trade.title",tTo.getNameForScoreboard()));
+      guiTo.setTitle(Text.translatable("gui.trade.title",tFrom.getNameForScoreboard()));
+      buildBorder();
       
       for(int i=0; i<12;i++){
          guiFrom.setSlotRedirect(yourSlots[i], new Slot(inv,i,0,0));
+         guiFrom.clearSlot(theirSlots[i]);
+         
          guiTo.setSlotRedirect(yourSlots[i], new Slot(inv,i+12,0,0));
+         guiTo.clearSlot(theirSlots[i]);
       }
-   
-      buildBorder();
-      guiTo.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Confirm").formatted(Formatting.RED)));
-      guiFrom.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Confirm").formatted(Formatting.RED)));
-      guiTo.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Waiting for player...").formatted(Formatting.RED)));
-      guiFrom.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Waiting for player...").formatted(Formatting.RED)));
+      
+      guiTo.setSlot(9,GuiElementBuilder.from(GraphicalItem.with(Trade.YELLOW_CONFIRM)).setName(Text.translatable("gui.trade.confirm").formatted(Formatting.RED)));
+      guiFrom.setSlot(9,GuiElementBuilder.from(GraphicalItem.with(Trade.YELLOW_CONFIRM)).setName(Text.translatable("gui.trade.confirm").formatted(Formatting.RED)));
+      guiTo.setSlot(17,GuiElementBuilder.from(GraphicalItem.with(Trade.YELLOW_CONFIRM)).setName(Text.translatable("gui.trade.waiting").formatted(Formatting.RED)));
+      guiFrom.setSlot(17,GuiElementBuilder.from(GraphicalItem.with(Trade.YELLOW_CONFIRM)).setName(Text.translatable("gui.trade.waiting").formatted(Formatting.RED)));
       fromReady = false;
       toReady = false;
       
@@ -81,40 +83,43 @@ public class TradeSession {
       guiFrom.open();
       guiTo.open();
    
-      Utils.playSongToPlayer(tTo, SoundEvents.BLOCK_NOTE_BLOCK_GUITAR,1f,.5f);
-      Utils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_GUITAR,1f,.5f);
+      SoundUtils.playSongToPlayer(tTo, SoundEvents.BLOCK_NOTE_BLOCK_GUITAR,1f,.5f);
+      SoundUtils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_GUITAR,1f,.5f);
       Timer timer = new Timer();
       timer.schedule(new TimerTask() {
          @Override
          public void run() {
-            Utils.playSongToPlayer(tTo, SoundEvents.BLOCK_NOTE_BLOCK_GUITAR,1f,1f);
-            Utils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_GUITAR,1f,1f);
+            SoundUtils.playSongToPlayer(tTo, SoundEvents.BLOCK_NOTE_BLOCK_GUITAR,1f,1f);
+            SoundUtils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_GUITAR,1f,1f);
          }
       }, 500);
    }
    
    public void buildBorder(){
-      for(int i=0;i<borderSlots.length;i++){
-         guiFrom.setSlot(borderSlots[i],new GuiElementBuilder(Items.BLACK_STAINED_GLASS_PANE).setName(Text.empty()));
-         guiTo.setSlot(borderSlots[i],new GuiElementBuilder(Items.BLACK_STAINED_GLASS_PANE).setName(Text.empty()));
-      }
+      final int borderColor = 0x0EB22B;
+      final int separatorColor = 0x638E68;
+      GuiHelper.outlineGUI(guiFrom,borderColor,Text.literal(""));
+      GuiHelper.outlineGUI(guiTo,borderColor,Text.literal(""));
+      guiFrom.setSlot(4,GuiElementBuilder.from(GraphicalItem.withColor(GraphicalItem.MENU_TOP_CONNECTOR, borderColor)).hideTooltip());
+      guiTo.setSlot(4,GuiElementBuilder.from(GraphicalItem.withColor(GraphicalItem.MENU_TOP_CONNECTOR, borderColor)).hideTooltip());
+      
       for(int i=0;i<middleSlots.length;i++){
-         guiFrom.setSlot(middleSlots[i],new GuiElementBuilder(Items.IRON_BARS).setName(Text.empty()));
-         guiTo.setSlot(middleSlots[i],new GuiElementBuilder(Items.IRON_BARS).setName(Text.empty()));
+         guiFrom.setSlot(middleSlots[i],GuiElementBuilder.from(GraphicalItem.withColor(GraphicalItem.MENU_VERTICAL, separatorColor)).hideTooltip());
+         guiTo.setSlot(middleSlots[i],GuiElementBuilder.from(GraphicalItem.withColor(GraphicalItem.MENU_VERTICAL, separatorColor)).hideTooltip());
       }
       
       GameProfile fromProfile = tFrom.getGameProfile();
-      GuiElementBuilder fromHead = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(fromProfile,tFrom.getServer());
-      guiFrom.setSlot(2,fromHead.setName((Text.literal("Your Items"))));
-      guiTo.setSlot(6,fromHead.setName((Text.literal(tFrom.getNameForScoreboard()+"'s Items"))));
-   
+      GuiElementBuilder fromHead = new GuiElementBuilder(Items.PLAYER_HEAD).setProfile(fromProfile);
+      guiFrom.setSlot(2,fromHead.setName(Text.translatable("gui.trade.your_items")));
+      guiTo.setSlot(6,fromHead.setName(Text.translatable("gui.trade.players_items",tFrom.getNameForScoreboard())));
+      
       GameProfile toProfile = tTo.getGameProfile();
-      GuiElementBuilder toHead = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(toProfile,tTo.getServer());
-      guiTo.setSlot(2,toHead.setName((Text.literal("Your Items"))));
-      guiFrom.setSlot(6,toHead.setName((Text.literal(tTo.getNameForScoreboard()+"'s Items"))));
-   
-      guiTo.setSlot(49,new GuiElementBuilder(Items.BARRIER).setName(Text.literal("Cancel Trade").formatted(Formatting.DARK_RED,Formatting.BOLD)));
-      guiFrom.setSlot(49,new GuiElementBuilder(Items.BARRIER).setName(Text.literal("Cancel Trade").formatted(Formatting.DARK_RED,Formatting.BOLD)));
+      GuiElementBuilder toHead = new GuiElementBuilder(Items.PLAYER_HEAD).setProfile(toProfile);
+      guiTo.setSlot(2,toHead.setName(Text.translatable("gui.trade.your_items")));
+      guiFrom.setSlot(6,toHead.setName(Text.translatable("gui.trade.players_items",tTo.getNameForScoreboard())));
+      
+      guiTo.setSlot(49,GuiElementBuilder.from(GraphicalItem.with(GraphicalItem.CANCEL)).setName(Text.translatable("gui.trade.cancel_trade").formatted(Formatting.DARK_RED,Formatting.BOLD)));
+      guiFrom.setSlot(49,GuiElementBuilder.from(GraphicalItem.with(GraphicalItem.CANCEL)).setName(Text.translatable("gui.trade.cancel_trade").formatted(Formatting.DARK_RED,Formatting.BOLD)));
    }
    
    public void updateGuis(){
@@ -124,7 +129,7 @@ public class TradeSession {
       }
       //System.out.println("updating guis");
       
-      listener.finishUpdate();
+      finishUpdate();
    }
    
    public void checkReadyStatus(){
@@ -157,32 +162,32 @@ public class TradeSession {
    }
    
    public void setUnready(){
-      guiTo.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Confirm").formatted(Formatting.RED)));
-      guiFrom.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Confirm").formatted(Formatting.RED)));
-      guiTo.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Waiting for player...").formatted(Formatting.RED)));
-      guiFrom.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Waiting for player...").formatted(Formatting.RED)));
+      guiTo.setSlot(9,GuiElementBuilder.from(GraphicalItem.with(Trade.YELLOW_CONFIRM)).setName(Text.translatable("gui.trade.confirm").formatted(Formatting.RED)));
+      guiFrom.setSlot(9,GuiElementBuilder.from(GraphicalItem.with(Trade.YELLOW_CONFIRM)).setName(Text.translatable("gui.trade.confirm").formatted(Formatting.RED)));
+      guiTo.setSlot(17,GuiElementBuilder.from(GraphicalItem.with(Trade.YELLOW_CONFIRM)).setName(Text.translatable("gui.trade.waiting").formatted(Formatting.RED)));
+      guiFrom.setSlot(17,GuiElementBuilder.from(GraphicalItem.with(Trade.YELLOW_CONFIRM)).setName(Text.translatable("gui.trade.waiting").formatted(Formatting.RED)));
       fromReady = false;
       toReady = false;
-      Utils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_HAT,1f,.5f);
-      Utils.playSongToPlayer(tTo, SoundEvents.BLOCK_NOTE_BLOCK_HAT,1f,.5f);
+      SoundUtils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_HAT,1f,.5f);
+      SoundUtils.playSongToPlayer(tTo, SoundEvents.BLOCK_NOTE_BLOCK_HAT,1f,.5f);
    }
    
    public void setReady(ServerPlayerEntity player){
       if(player.equals(tFrom)&&!fromReady){
-         guiFrom.setSlot(9,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(Text.literal("Confirmed!").formatted(Formatting.GREEN)));
-         guiTo.setSlot(17,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(Text.literal("Player Ready!").formatted(Formatting.GREEN)));
+         guiFrom.setSlot(9,GuiElementBuilder.from(GraphicalItem.with(Trade.GREEN_CONFIRM)).setName(Text.translatable("gui.trade.confirmed").formatted(Formatting.GREEN)));
+         guiTo.setSlot(17,GuiElementBuilder.from(GraphicalItem.with(Trade.GREEN_CONFIRM)).setName(Text.translatable("gui.trade.ready").formatted(Formatting.GREEN)));
          fromReady = true;
-         Utils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_PLING,1f,1f);
-         Utils.playSongToPlayer(tTo, SoundEvents.BLOCK_NOTE_BLOCK_PLING,1f,2f);
+         SoundUtils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_PLING,1f,1f);
+         SoundUtils.playSongToPlayer(tTo, SoundEvents.BLOCK_NOTE_BLOCK_PLING,1f,2f);
          for(int i=0;i<12;i++){
             readyState[i] = inv.getStack(i);
          }
       }else if(player.equals(tTo)&&!toReady){
-         guiTo.setSlot(9,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(Text.literal("Confirmed!").formatted(Formatting.GREEN)));
-         guiFrom.setSlot(17,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(Text.literal("Player Ready!").formatted(Formatting.GREEN)));
+         guiTo.setSlot(9,GuiElementBuilder.from(GraphicalItem.with(Trade.GREEN_CONFIRM)).setName(Text.translatable("gui.trade.confirmed").formatted(Formatting.GREEN)));
+         guiFrom.setSlot(17,GuiElementBuilder.from(GraphicalItem.with(Trade.GREEN_CONFIRM)).setName(Text.translatable("gui.trade.ready").formatted(Formatting.GREEN)));
          toReady = true;
-         Utils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_PLING,1f,2f);
-         Utils.playSongToPlayer(tTo, SoundEvents.BLOCK_NOTE_BLOCK_PLING,1f,1f);
+         SoundUtils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_PLING,1f,2f);
+         SoundUtils.playSongToPlayer(tTo, SoundEvents.BLOCK_NOTE_BLOCK_PLING,1f,1f);
          for(int i=12;i<24;i++){
             readyState[i] = inv.getStack(i);
          }
@@ -195,14 +200,14 @@ public class TradeSession {
          timer.schedule(new TimerTask() {
             @Override
             public void run() {
-               Utils.playSongToPlayer(tTo, SoundEvents.BLOCK_NOTE_BLOCK_BELL,1.5f,1f);
-               Utils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_BELL,1.5f,1f);
+               SoundUtils.playSongToPlayer(tTo, SoundEvents.BLOCK_NOTE_BLOCK_BELL,1.5f,1f);
+               SoundUtils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_BELL,1.5f,1f);
                Timer timer2 = new Timer();
                timer2.schedule(new TimerTask() {
                   @Override
                   public void run() {
-                     Utils.playSongToPlayer(tTo, SoundEvents.BLOCK_NOTE_BLOCK_BELL,1.5f,2f);
-                     Utils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_BELL,1.5f,2f);
+                     SoundUtils.playSongToPlayer(tTo, SoundEvents.BLOCK_NOTE_BLOCK_BELL,1.5f,2f);
+                     SoundUtils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_BELL,1.5f,2f);
                   }
                }, 500);
             }
@@ -239,13 +244,13 @@ public class TradeSession {
          }
       }
       
-      tFrom.sendMessage(Text.literal("Trade Completed!").formatted(Formatting.GREEN), false);
-      tTo.sendMessage(Text.literal("Trade Completed!").formatted(Formatting.GREEN), false);
+      tFrom.sendMessage(Text.translatable("gui.trade.completed").formatted(Formatting.GREEN), false);
+      tTo.sendMessage(Text.translatable("gui.trade.completed").formatted(Formatting.GREEN), false);
       closing = true;
       guiFrom.close();
       guiTo.close();
       
-      main.completeSession(tFrom,tTo,tr);
+      Trade.completeSession(tr);
    }
    
    public void cancelTrade(ServerPlayerEntity player){
@@ -284,17 +289,28 @@ public class TradeSession {
             }
          }
          
-         player.sendMessage(Text.literal("You have cancelled the trade request!").formatted(Formatting.RED), false);
+         player.sendMessage(Text.translatable("gui.trade.you_cancelled").formatted(Formatting.RED), false);
          ServerPlayerEntity other = player.equals(tFrom) ? tTo : tFrom;
-         other.sendMessage(Text.literal(player.getName().getString()).formatted(Formatting.AQUA)
-               .append(Text.literal(" has cancelled the trade request!").formatted(Formatting.RED)), false);
+         other.sendMessage(Text.translatable("gui.trade.they_cancelled",Text.literal(player.getName().getString()).formatted(Formatting.AQUA)).formatted(Formatting.RED),false);
    
          guiFrom.close();
          guiTo.close();
          
-         
-         Utils.playSongToPlayer(tFrom, RegistryEntry.of(SoundEvents.BLOCK_FIRE_EXTINGUISH) ,1f,.5f);
-         Utils.playSongToPlayer(tTo, RegistryEntry.of(SoundEvents.BLOCK_FIRE_EXTINGUISH),1f,.5f);
+         SoundUtils.playSongToPlayer(tFrom, RegistryEntry.of(SoundEvents.BLOCK_FIRE_EXTINGUISH) ,1f,.5f);
+         SoundUtils.playSongToPlayer(tTo, RegistryEntry.of(SoundEvents.BLOCK_FIRE_EXTINGUISH),1f,.5f);
       }
+   }
+   
+   @Override
+   public void onInventoryChanged(Inventory inv){
+      if(!updating){
+         updating = true;
+         checkReadyStatus();
+         updateGuis();
+      }
+   }
+   
+   public void finishUpdate(){
+      updating = false;
    }
 }

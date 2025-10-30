@@ -1,8 +1,7 @@
-package net.borisshoes.trade.gui;
+package net.borisshoes.trade;
 
 import eu.pb4.sgui.api.ClickType;
 import eu.pb4.sgui.api.gui.SimpleGui;
-import net.borisshoes.trade.TradeSession;
 import net.minecraft.screen.ScreenHandlerType;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.server.network.ServerPlayerEntity;
