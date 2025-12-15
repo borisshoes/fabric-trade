@@ -3,39 +3,39 @@ package net.borisshoes.trade;
 import com.mojang.authlib.GameProfile;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import net.borisshoes.borislib.gui.*;
-import net.minecraft.item.Items;
-import net.minecraft.screen.ScreenHandlerType;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Predicate;
 
-public class TradeSelectionGui extends PagedGui<ServerPlayerEntity> {
+public class TradeSelectionGui extends PagedGui<ServerPlayer> {
    private final int pageColor = 0xd9c682;
    private int tickCounter = 0;
    
-   private static List<ServerPlayerEntity> getEntries(MinecraftServer server, ServerPlayerEntity except){
-      ArrayList<ServerPlayerEntity> players = new ArrayList<>(server.getPlayerManager().getPlayerList());
+   private static List<ServerPlayer> getEntries(MinecraftServer server, ServerPlayer except){
+      ArrayList<ServerPlayer> players = new ArrayList<>(server.getPlayerList().getPlayers());
       players.remove(except);
       return players;
    }
    
-   public TradeSelectionGui(ServerPlayerEntity player){
-      super(ScreenHandlerType.GENERIC_9X6, player, getEntries(player.getEntityWorld().getServer(),player));
-      action1TextColor(Formatting.AQUA.getColorValue().intValue());
-      action2TextColor(Formatting.GREEN.getColorValue().intValue());
-      action3TextColor(Formatting.YELLOW.getColorValue().intValue());
+   public TradeSelectionGui(ServerPlayer player){
+      super(MenuType.GENERIC_9x6, player, getEntries(player.level().getServer(),player));
+      action1TextColor(ChatFormatting.AQUA.getColor().intValue());
+      action2TextColor(ChatFormatting.GREEN.getColor().intValue());
+      action3TextColor(ChatFormatting.YELLOW.getColor().intValue());
       itemElemBuilder((p) -> {
          GameProfile profile = p.getGameProfile();
          GuiElementBuilder builder = new GuiElementBuilder(Items.PLAYER_HEAD).setProfile(profile);
-         builder.setName(Text.literal("").formatted(Formatting.LIGHT_PURPLE).append(p.getStyledDisplayName()));
-         builder.addLoreLine(Text.translatable("gui.trade.select_trade",
-               Text.translatable("gui.borislib.click").withColor(getAction1TextColor())
+         builder.setName(Component.literal("").withStyle(ChatFormatting.LIGHT_PURPLE).append(p.getFeedbackDisplayName()));
+         builder.addLoreLine(Component.translatable("gui.trade.select_trade",
+               Component.translatable("gui.borislib.click").withColor(getAction1TextColor())
          ).withColor(getPrimaryTextColor()));
          return builder;
       });
@@ -47,8 +47,8 @@ public class TradeSelectionGui extends PagedGui<ServerPlayerEntity> {
       });
       curSort(PlayerSort.ALPHABETICAL);
       curFilter(PlayerFilter.NONE);
-      GuiHelper.outlineGUI(this,0x0E9621,Text.empty());
-      setTitle(Text.translatable("gui.trade.select_title"));
+      GuiHelper.outlineGUI(this,0x0E9621, Component.empty());
+      setTitle(Component.translatable("gui.trade.select_title"));
       buildPage();
       open();
    }
@@ -57,20 +57,20 @@ public class TradeSelectionGui extends PagedGui<ServerPlayerEntity> {
    public void onTick(){
       tickCounter++;
       if(tickCounter >= 100){
-         items(getEntries(player.getEntityWorld().getServer(),player));
+         items(getEntries(player.level().getServer(),player));
          buildPage();
          tickCounter = 0;
       }
       super.onTick();
    }
    
-   private static class PlayerSort extends GuiSort<ServerPlayerEntity> {
+   private static class PlayerSort extends GuiSort<ServerPlayer> {
       public static final List<PlayerSort> SORTS = new ArrayList<>();
       
-      public static final PlayerSort ALPHABETICAL = new PlayerSort("gui.borislib.alphabetical", Formatting.AQUA.getColorValue().intValue(),
-            Comparator.comparing(ServerPlayerEntity::getNameForScoreboard));
+      public static final PlayerSort ALPHABETICAL = new PlayerSort("gui.borislib.alphabetical", ChatFormatting.AQUA.getColor().intValue(),
+            Comparator.comparing(ServerPlayer::getScoreboardName));
       
-      private PlayerSort(String key, int color, Comparator<ServerPlayerEntity> comparator){
+      private PlayerSort(String key, int color, Comparator<ServerPlayer> comparator){
          super(key, color, comparator);
          SORTS.add(this);
       }
@@ -85,12 +85,12 @@ public class TradeSelectionGui extends PagedGui<ServerPlayerEntity> {
       }
    }
    
-   private static class PlayerFilter extends GuiFilter<ServerPlayerEntity> {
+   private static class PlayerFilter extends GuiFilter<ServerPlayer> {
       public static final List<PlayerFilter> FILTERS = new ArrayList<>();
       
-      public static final PlayerFilter NONE = new PlayerFilter("gui.borislib.none", Formatting.WHITE.getColorValue().intValue(), entry -> true);
+      public static final PlayerFilter NONE = new PlayerFilter("gui.borislib.none", ChatFormatting.WHITE.getColor().intValue(), entry -> true);
       
-      private PlayerFilter(String key, int color, Predicate<ServerPlayerEntity> predicate){
+      private PlayerFilter(String key, int color, Predicate<ServerPlayer> predicate){
          super(key, color, predicate);
          FILTERS.add(this);
       }

@@ -13,9 +13,9 @@ A simple server-sided mod to give players the ability to trade items safely with
 
 ### Admin Commands & Configuration
 Configuration can be done through the properties file generated when loaded on a server or through commands.
-* ```/trademod config cooldown <0+>``` Sets the number of seconds before a player can trade with another player again
-* ```/trademod config timeout <0+>``` Sets the number of seconds before a trade request expires
-* ```/trademod config cooldown-mode <WHO_INITIATED/BOTH_USERS>``` Sets whether only the trade initiator must wait the cooldown, or both participants
+* ```/tradeconfig cooldown <0+>``` Sets the number of seconds before a player can trade with another player again
+* ```/tradeconfig timeout <0+>``` Sets the number of seconds before a trade request expires
+* ```/tradeconfig cooldown-mode <WHO_INITIATED/BOTH_USERS>``` Sets whether only the trade initiator must wait the cooldown, or both participants
 
 ### LICENSE NOTICE
 By using this project in any form, you hereby give your "express assent" for the terms of the license of this project, and acknowledge that I, BorisShoes, have fulfilled my obligation under the license to "make a reasonable effort under the circumstances to obtain the express assent of recipients to the terms of this License.
