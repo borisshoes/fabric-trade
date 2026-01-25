@@ -30,7 +30,7 @@ public class TradeSelectionGui extends PagedGui<ServerPlayer> {
       action1TextColor(ChatFormatting.AQUA.getColor().intValue());
       action2TextColor(ChatFormatting.GREEN.getColor().intValue());
       action3TextColor(ChatFormatting.YELLOW.getColor().intValue());
-      itemElemBuilder((p) -> {
+      itemElemBuilder((p, i) -> {
          GameProfile profile = p.getGameProfile();
          GuiElementBuilder builder = new GuiElementBuilder(Items.PLAYER_HEAD).setProfile(profile);
          builder.setName(Component.literal("").withStyle(ChatFormatting.LIGHT_PURPLE).append(p.getFeedbackDisplayName()));
