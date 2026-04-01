@@ -5,6 +5,8 @@
   "command.trade.cooldown.comment": "The minimum duration between a completed trade and issuing a new request, in seconds.",
   "command.trade.cooldown-mode.comment": "The mode for which player(s) get put on cooldown after completing a trade. Either WHO_INITIATED, or BOTH_USERS",
   "command.trade.cooldown-mode.getter_setter": "Trade Cooldown Mode: %s",
+  "command.trade.logCommandUsage.comment": "Whether to log successful command usage to the server console.",
+  "command.trade.logCommandUsage.getter_setter": "Log command usage: %s",
   "command.trade.error": "Invalid command arguments",
   "text.trade.cannot_trade_self": "You cannot request to trade with yourself!",
   "text.trade.already_requested": "There is already an ongoing request like this!",
@@ -33,5 +35,6 @@
   "text.trade.they_requested": "%s has requested to trade with you!\nTo accept, type %s\nTo deny, type%s\nThis request will timeout in %s seconds.",
   "gui.trade.select_trade": "%s to send a trade request",
   "text.trade.must_be_player": "Trade requests must come from a player!",
+  "text.trade.no_permission": "You do not have permission to use this command!",
   "gui.trade.select_title": "Send a Trade Request!"
 }

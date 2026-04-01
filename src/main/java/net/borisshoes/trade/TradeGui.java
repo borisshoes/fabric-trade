@@ -2,6 +2,7 @@ package net.borisshoes.trade;
 
 import eu.pb4.sgui.api.ClickType;
 import eu.pb4.sgui.api.gui.SimpleGui;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -21,7 +22,14 @@ public class TradeGui extends SimpleGui {
    }
    
    @Override
-   public boolean onAnyClick(int index, ClickType type, net.minecraft.world.inventory.ClickType action) {
+   public boolean open(){
+      boolean openRet = super.open();
+      this.wrappedMenu.addSlotListener(session);
+      return openRet;
+   }
+   
+   @Override
+   public boolean onAnyClick(int index, ClickType type, ContainerInput action) {
       //System.out.println("Gui from "+player.getName().getString()+" has clicked slot "+index+" with clicktype "+type.name()+" and actiontype "+action.name());
       boolean checkSlots = false;
       for(int i=0;i<yourSlots.length;i++){
@@ -31,23 +39,21 @@ public class TradeGui extends SimpleGui {
          }
       }
       
-      if(checkSlots || action == net.minecraft.world.inventory.ClickType.PICKUP_ALL){
+      if(checkSlots || action == ContainerInput.PICKUP_ALL){
          //System.out.println("checking ready status for player: "+player.getEntityName());
          session.checkReadyStatus(player);
       }
-      if(index==9 && action == net.minecraft.world.inventory.ClickType.PICKUP){
+      if(index==9 && action == ContainerInput.PICKUP){
          session.setReady(player);
       }
-      if(index==49 && action == net.minecraft.world.inventory.ClickType.PICKUP){
+      if(index==49 && action == ContainerInput.PICKUP){
          session.cancelTrade(player);
       }
       return true;
    }
    
    @Override
-   public void onClose(){
-      //MutableText text = Text.literal(player.getEntityName()+" has cancelled the trade.");
-      //player.server.sendSystemMessage(text,player.getUuid());
+   public void onRemoved(){
       session.cancelTrade(player);
    }
 }

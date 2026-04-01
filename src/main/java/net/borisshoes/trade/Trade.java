@@ -9,12 +9,15 @@ import eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils;
 import net.borisshoes.borislib.config.ConfigManager;
 import net.borisshoes.borislib.config.ConfigSetting;
 import net.borisshoes.borislib.config.IConfigSetting;
+import net.borisshoes.borislib.config.values.BooleanConfigValue;
 import net.borisshoes.borislib.config.values.EnumConfigValue;
 import net.borisshoes.borislib.config.values.IntConfigValue;
 import net.borisshoes.borislib.gui.GraphicalItem;
 import net.borisshoes.borislib.utils.TextUtils;
+import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.minecraft.server.permissions.PermissionLevel;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.world.item.Items;
 import net.minecraft.core.Registry;
@@ -62,6 +65,9 @@ public class Trade implements ModInitializer {
    public static final IConfigSetting<?> COOLDOWN_MODE_CFG = registerConfigSetting(new ConfigSetting<>(
          new EnumConfigValue<>("cooldown-mode", TradeCooldownMode.WHO_INITIATED, TradeCooldownMode.class)));
    
+   public static final IConfigSetting<?> LOG_COMMAND_USAGE = registerConfigSetting(new ConfigSetting<>(
+         new BooleanConfigValue("logCommandUsage", false)));
+   
    private static IConfigSetting<?> registerConfigSetting(IConfigSetting<?> setting){
       Registry.register(CONFIG_SETTINGS, Identifier.fromNamespaceAndPath(MOD_ID,setting.getId()),setting);
       return setting;
@@ -107,29 +113,40 @@ public class Trade implements ModInitializer {
       CONFIG = new ConfigManager(MOD_ID,"Trade",CONFIG_NAME,CONFIG_SETTINGS);
       
       CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, registrationEnvironment) -> {
-         dispatcher.register(literal("trade").executes(Trade::openTradeSelector)
-               .then(argument("target", EntityArgument.player()).suggests(this::getTradeInitSuggestions)
+         dispatcher.register(literal("trade").requires(Permissions.require(MOD_ID + ".trade.gui", PermissionLevel.ALL))
+               .executes(Trade::openTradeSelector)
+               .then(argument("target", EntityArgument.player())
+                     .requires(Permissions.require(MOD_ID + ".trade.others", PermissionLevel.ALL))
+                     .suggests(this::getTradeInitSuggestions)
                      .executes(ctx -> tradeInit(ctx, getPlayer(ctx, "target")))));
-      
+
          dispatcher.register(literal("tradeaccept")
                .then(argument("target", EntityArgument.player()).suggests(this::getTradeTargetSuggestions)
                      .executes(ctx -> tradeAccept(ctx, getPlayer(ctx, "target"))))
                .executes(ctx -> tradeAccept(ctx, null)));
-      
+
          dispatcher.register(literal("tradedeny")
                .then(argument("target", EntityArgument.player()).suggests(this::getTradeTargetSuggestions)
                      .executes(ctx -> tradeDeny(ctx, getPlayer(ctx, "target"))))
                .executes(ctx -> tradeDeny(ctx, null)));
-         
+
          dispatcher.register(literal("tradecancel")
                .then(argument("target", EntityArgument.player()).suggests(this::getTradeSenderSuggestions)
                      .executes(ctx -> tradeCancel(ctx, getPlayer(ctx, "target"))))
                .executes(ctx -> tradeCancel(ctx, null)));
-         
+
          dispatcher.register(CONFIG.generateCommand("tradeconfig",""));
       });
       
       PolymerResourcePackUtils.addModAssets(MOD_ID);
+   }
+   
+   private static void logCommandSuccess(CommandContext<CommandSourceStack> ctx){
+      if(CONFIG.getBoolean(LOG_COMMAND_USAGE)){
+         String executor = ctx.getSource().getTextName();
+         String command = ctx.getInput();
+         logger.info("[Command] {} executed: /{}", executor, command);
+      }
    }
    
    private static int openTradeSelector(CommandContext<CommandSourceStack> ctx){
@@ -139,6 +156,7 @@ public class Trade implements ModInitializer {
          return -1;
       }
       TradeSelectionGui gui = new TradeSelectionGui(trader);
+      logCommandSuccess(ctx);
       return 1;
    }
    
@@ -148,7 +166,9 @@ public class Trade implements ModInitializer {
          ctx.getSource().sendSystemMessage(Component.translatable("text.trade.must_be_player").withStyle(ChatFormatting.RED));
          return -1;
       }
-      return tradeInit(tFrom,tTo);
+      int result = tradeInit(tFrom,tTo);
+      if(result == 1) logCommandSuccess(ctx);
+      return result;
    }
    
    public static int tradeInit(ServerPlayer tFrom, ServerPlayer tTo){
@@ -157,7 +177,7 @@ public class Trade implements ModInitializer {
       }
       
       if (tFrom.equals(tTo)) {
-         tFrom.displayClientMessage(Component.translatable("text.trade.cannot_trade_self").withStyle(ChatFormatting.RED), false);
+         tFrom.sendSystemMessage(Component.translatable("text.trade.cannot_trade_self").withStyle(ChatFormatting.RED), false);
          return -1;
       }
       
@@ -165,17 +185,17 @@ public class Trade implements ModInitializer {
       
       TradeRequest tr = new TradeRequest(tFrom, tTo, CONFIG.getInt(TIMEOUT_CFG) * 1000);
       if (ACTIVE_TRADES.stream().anyMatch(tpaRequest -> tpaRequest.equals(tr))) {
-         tFrom.displayClientMessage(Component.translatable("text.trade.already_requested").withStyle(ChatFormatting.RED), false);
+         tFrom.sendSystemMessage(Component.translatable("text.trade.already_requested").withStyle(ChatFormatting.RED), false);
          return -1;
       }
       tr.setTimeoutCallback(() -> {
          ACTIVE_TRADES.remove(tr);
-         tFrom.displayClientMessage(Component.translatable("text.trade.trade_to_timeout",tTo.getName().getString()).withStyle(ChatFormatting.RED), false);
-         tTo.displayClientMessage(Component.translatable("text.trade.trade_from_timeout",tFrom.getName().getString()).withStyle(ChatFormatting.RED), false);
+         tFrom.sendSystemMessage(Component.translatable("text.trade.trade_to_timeout",tTo.getName().getString()).withStyle(ChatFormatting.RED), false);
+         tTo.sendSystemMessage(Component.translatable("text.trade.trade_from_timeout",tFrom.getName().getString()).withStyle(ChatFormatting.RED), false);
       });
       ACTIVE_TRADES.add(tr);
       
-      tFrom.displayClientMessage(Component.translatable("text.trade.you_requested",
+      tFrom.sendSystemMessage(Component.translatable("text.trade.you_requested",
                   Component.literal(tTo.getName().getString()).withStyle(ChatFormatting.AQUA),
                   Component.literal("/tradecancel [<player>]").withStyle(s ->
                         s.withClickEvent(new ClickEvent.RunCommand("/tradecancel " + tTo.getName().getString()))
@@ -185,7 +205,7 @@ public class Trade implements ModInitializer {
             ).withStyle(ChatFormatting.GREEN),
             false);
       
-      tTo.displayClientMessage(
+      tTo.sendSystemMessage(
             Component.translatable("text.trade.they_requested",
                   Component.literal(tFrom.getName().getString()).withStyle(ChatFormatting.AQUA),
                   Component.literal("/tradeaccept [<player>]").withStyle(s ->
@@ -202,7 +222,11 @@ public class Trade implements ModInitializer {
       return 1;
    }
    
-   public static int tradeAccept(CommandContext<CommandSourceStack> ctx, ServerPlayer tFrom) throws CommandSyntaxException {
+   public static int tradeAccept(CommandContext<CommandSourceStack> ctx, ServerPlayer tFrom){
+      if(!Permissions.check(ctx.getSource(), MOD_ID + ".tradeaccept", PermissionLevel.ALL)){
+         ctx.getSource().sendFailure(Component.translatable("text.trade.no_permission").withStyle(ChatFormatting.RED));
+         return -1;
+      }
       final ServerPlayer tTo = ctx.getSource().getPlayer();
       if(tTo == null){
          ctx.getSource().sendSystemMessage(Component.translatable("text.trade.must_be_player").withStyle(ChatFormatting.RED));
@@ -219,11 +243,11 @@ public class Trade implements ModInitializer {
                         s.withClickEvent(new ClickEvent.RunCommand("/tradeaccept " + name))
                               .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tradeaccept " + name)))
                               .withColor(ChatFormatting.GOLD))).append(" "));
-            tTo.displayClientMessage(text, false);
+            tTo.sendSystemMessage(text, false);
             return 1;
          }
          if (candidates.length < 1) {
-            tTo.displayClientMessage(Component.translatable("text.trade.no_requests").withStyle(ChatFormatting.RED), false);
+            tTo.sendSystemMessage(Component.translatable("text.trade.no_requests").withStyle(ChatFormatting.RED), false);
             return 1;
          }
          tFrom = candidates[0].tFrom;
@@ -238,13 +262,18 @@ public class Trade implements ModInitializer {
       tr.cancelTimeout();
       ACTIVE_TRADES.remove(tr);
       
-      tr.tTo.displayClientMessage(Component.translatable("text.trade.you_accept"), false);
-      tr.tFrom.displayClientMessage(Component.translatable("text.trade.they_accept", Component.literal(tr.tTo.getName().getString()).withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.GREEN), false);
+      tr.tTo.sendSystemMessage(Component.translatable("text.trade.you_accept"), false);
+      tr.tFrom.sendSystemMessage(Component.translatable("text.trade.they_accept", Component.literal(tr.tTo.getName().getString()).withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.GREEN), false);
+      logCommandSuccess(ctx);
       return 1;
    }
    
    
-   public static int tradeDeny(CommandContext<CommandSourceStack> ctx, ServerPlayer tFrom) throws CommandSyntaxException{
+   public static int tradeDeny(CommandContext<CommandSourceStack> ctx, ServerPlayer tFrom){
+      if(!Permissions.check(ctx.getSource(), MOD_ID + ".tradedeny", PermissionLevel.ALL)){
+         ctx.getSource().sendFailure(Component.translatable("text.trade.no_permission").withStyle(ChatFormatting.RED));
+         return -1;
+      }
       final ServerPlayer tTo = ctx.getSource().getPlayer();
       
       if (tFrom == null) {
@@ -257,11 +286,11 @@ public class Trade implements ModInitializer {
                         s.withClickEvent(new ClickEvent.RunCommand("/tradedeny " + name))
                               .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tradedeny " + name)))
                               .withColor(ChatFormatting.GOLD))).append(" "));
-            tTo.displayClientMessage(text, false);
+            tTo.sendSystemMessage(text, false);
             return 1;
          }
          if (candidates.length < 1) {
-            tTo.displayClientMessage(Component.translatable("text.trade.no_requests").withStyle(ChatFormatting.RED), false);
+            tTo.sendSystemMessage(Component.translatable("text.trade.no_requests").withStyle(ChatFormatting.RED), false);
             return 1;
          }
          tFrom = candidates[0].tFrom;
@@ -271,12 +300,17 @@ public class Trade implements ModInitializer {
       if (tr == null) return 1;
       tr.cancelTimeout();
       ACTIVE_TRADES.remove(tr);
-      tr.tTo.displayClientMessage(Component.translatable("gui.trade.you_cancelled"), false);
-      tr.tFrom.displayClientMessage(Component.translatable("gui.trade.they_cancelled", Component.literal(tr.tTo.getName().getString()).withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.RED), false);
+      tr.tTo.sendSystemMessage(Component.translatable("gui.trade.you_cancelled"), false);
+      tr.tFrom.sendSystemMessage(Component.translatable("gui.trade.they_cancelled", Component.literal(tr.tTo.getName().getString()).withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.RED), false);
+      logCommandSuccess(ctx);
       return 1;
    }
    
-   public static int tradeCancel(CommandContext<CommandSourceStack> ctx, ServerPlayer tTo) throws CommandSyntaxException {
+   public static int tradeCancel(CommandContext<CommandSourceStack> ctx, ServerPlayer tTo){
+      if(!Permissions.check(ctx.getSource(), MOD_ID + ".tradecancel", PermissionLevel.ALL)){
+         ctx.getSource().sendFailure(Component.translatable("text.trade.no_permission").withStyle(ChatFormatting.RED));
+         return -1;
+      }
       final ServerPlayer tFrom = ctx.getSource().getPlayer();
       
       if (tTo == null) {
@@ -290,11 +324,11 @@ public class Trade implements ModInitializer {
                         s.withClickEvent(new ClickEvent.RunCommand("/tradecancel " + name))
                               .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tradecancel " + name)))
                               .withColor(ChatFormatting.GOLD))).append(" "));
-            tFrom.displayClientMessage(text, false);
+            tFrom.sendSystemMessage(text, false);
             return 1;
          }
          if (candidates.length < 1) {
-            tFrom.displayClientMessage(Component.translatable("text.trade.no_requests").withStyle(ChatFormatting.RED), false);
+            tFrom.sendSystemMessage(Component.translatable("text.trade.no_requests").withStyle(ChatFormatting.RED), false);
             return 1;
          }
          tTo = candidates[0].tTo;
@@ -304,8 +338,9 @@ public class Trade implements ModInitializer {
       if (tr == null) return 1;
       tr.cancelTimeout();
       ACTIVE_TRADES.remove(tr);
-      tr.tFrom.displayClientMessage(Component.translatable("gui.trade.you_cancelled").withStyle(ChatFormatting.RED), false);
-      tr.tTo.displayClientMessage(Component.translatable("gui.trade.they_cancelled", Component.literal(tr.tFrom.getName().getString()).withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.RED), false);
+      tr.tFrom.sendSystemMessage(Component.translatable("gui.trade.you_cancelled").withStyle(ChatFormatting.RED), false);
+      tr.tTo.sendSystemMessage(Component.translatable("gui.trade.they_cancelled", Component.literal(tr.tFrom.getName().getString()).withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.RED), false);
+      logCommandSuccess(ctx);
       return 1;
    }
    
@@ -315,9 +350,9 @@ public class Trade implements ModInitializer {
       
       if (otr.isEmpty()) {
          if (action == TradeAction.CANCEL) {
-            tFrom.displayClientMessage(Component.translatable("text.trade.no_request").withStyle(ChatFormatting.RED), false);
+            tFrom.sendSystemMessage(Component.translatable("text.trade.no_request").withStyle(ChatFormatting.RED), false);
          } else {
-            tTo.displayClientMessage(Component.translatable("text.trade.no_request").withStyle(ChatFormatting.RED), false);
+            tTo.sendSystemMessage(Component.translatable("text.trade.no_request").withStyle(ChatFormatting.RED), false);
          }
          return null;
       }
@@ -330,7 +365,7 @@ public class Trade implements ModInitializer {
       if (RECENT_REQUESTS.containsKey(tFrom.getUUID())) {
          long diff = Instant.now().getEpochSecond() - RECENT_REQUESTS.get(tFrom.getUUID());
          if (diff < CONFIG.getInt(COOLDOWN_CFG)) {
-            tFrom.displayClientMessage(Component.translatable("text.trade.on_cooldown", TextUtils.readableInt((int) (CONFIG.getInt(COOLDOWN_CFG) - diff))).withStyle(ChatFormatting.RED), false);
+            tFrom.sendSystemMessage(Component.translatable("text.trade.on_cooldown", TextUtils.readableInt((int) (CONFIG.getInt(COOLDOWN_CFG) - diff))).withStyle(ChatFormatting.RED), false);
             return true;
          }
       }

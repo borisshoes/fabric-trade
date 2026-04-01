@@ -23,8 +23,8 @@
   ],
   "depends": {
     "fabricloader": ">=${loader_version}",
-    "fabric": "*",
+    "fabric-api": "*",
     "minecraft": ">=${minecraft_version}",
-    "borislib": "*"
+    "borislib": ">=${borislib_mod_version}"
   }
 }

@@ -1,16 +1,17 @@
 package net.borisshoes.trade;
 
 import com.mojang.authlib.GameProfile;
-import eu.pb4.sgui.api.GuiHelpers;
+import eu.pb4.sgui.api.SguiUtils;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
-import eu.pb4.sgui.api.gui.GuiInterface;
+import eu.pb4.sgui.api.gui.GuiLike;
 import net.borisshoes.borislib.gui.GraphicalItem;
 import net.borisshoes.borislib.gui.GuiHelper;
 import net.borisshoes.borislib.utils.SoundUtils;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.Container;
-import net.minecraft.world.ContainerListener;
 import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerListener;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.core.Holder;
@@ -45,11 +46,10 @@ public class TradeSession implements ContainerListener {
       this.tr = tr;
       
       inv = new SimpleContainer(24);
-      inv.addListener(this);
       
       readyState = new ItemStack[24];
       for(int i = 0; i<24;i++){readyState[i]= ItemStack.EMPTY;}
-   
+      
       guiFrom = new TradeGui(MenuType.GENERIC_9x6,tFrom,this);
       guiTo = new TradeGui(MenuType.GENERIC_9x6,tTo,this);
       guiFrom.setTitle(Component.translatable("gui.trade.title",tTo.getScoreboardName()));
@@ -57,10 +57,10 @@ public class TradeSession implements ContainerListener {
       buildBorder();
       
       for(int i=0; i<12;i++){
-         guiFrom.setSlotRedirect(yourSlots[i], new Slot(inv,i,0,0));
+         guiFrom.setSlot(yourSlots[i], new Slot(inv,i,0,0));
          guiFrom.clearSlot(theirSlots[i]);
          
-         guiTo.setSlotRedirect(yourSlots[i], new Slot(inv,i+12,0,0));
+         guiTo.setSlot(yourSlots[i], new Slot(inv,i+12,0,0));
          guiTo.clearSlot(theirSlots[i]);
       }
       
@@ -71,11 +71,11 @@ public class TradeSession implements ContainerListener {
       fromReady = false;
       toReady = false;
       
-      GuiInterface curToGui = GuiHelpers.getCurrentGui(tTo);
+      GuiLike curToGui = SguiUtils.getCurrentGui(tTo);
       if(curToGui != null){
          curToGui.close();
       }
-      GuiInterface curFromGui = GuiHelpers.getCurrentGui(tFrom);
+      GuiLike curFromGui = SguiUtils.getCurrentGui(tFrom);
       if(curFromGui != null){
          curFromGui.close();
       }
@@ -244,8 +244,8 @@ public class TradeSession implements ContainerListener {
          }
       }
       
-      tFrom.displayClientMessage(Component.translatable("gui.trade.completed").withStyle(ChatFormatting.GREEN), false);
-      tTo.displayClientMessage(Component.translatable("gui.trade.completed").withStyle(ChatFormatting.GREEN), false);
+      tFrom.sendSystemMessage(Component.translatable("gui.trade.completed").withStyle(ChatFormatting.GREEN), false);
+      tTo.sendSystemMessage(Component.translatable("gui.trade.completed").withStyle(ChatFormatting.GREEN), false);
       closing = true;
       guiFrom.close();
       guiTo.close();
@@ -289,9 +289,9 @@ public class TradeSession implements ContainerListener {
             }
          }
          
-         player.displayClientMessage(Component.translatable("gui.trade.you_cancelled").withStyle(ChatFormatting.RED), false);
+         player.sendSystemMessage(Component.translatable("gui.trade.you_cancelled").withStyle(ChatFormatting.RED), false);
          ServerPlayer other = player.equals(tFrom) ? tTo : tFrom;
-         other.displayClientMessage(Component.translatable("gui.trade.they_cancelled", Component.literal(player.getName().getString()).withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.RED),false);
+         other.sendSystemMessage(Component.translatable("gui.trade.they_cancelled", Component.literal(player.getName().getString()).withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.RED),false);
    
          guiFrom.close();
          guiTo.close();
@@ -302,13 +302,16 @@ public class TradeSession implements ContainerListener {
    }
    
    @Override
-   public void containerChanged(Container inv){
+   public void slotChanged(AbstractContainerMenu inv, int slotIndex, ItemStack itemStack){
       if(!updating){
          updating = true;
          checkReadyStatus();
          updateGuis();
       }
    }
+   
+   @Override
+   public void dataChanged(AbstractContainerMenu container, int id, int value){}
    
    public void finishUpdate(){
       updating = false;

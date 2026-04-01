@@ -16,6 +16,28 @@ Configuration can be done through the properties file generated when loaded on a
 * ```/tradeconfig cooldown <0+>``` Sets the number of seconds before a player can trade with another player again
 * ```/tradeconfig timeout <0+>``` Sets the number of seconds before a trade request expires
 * ```/tradeconfig cooldown-mode <WHO_INITIATED/BOTH_USERS>``` Sets whether only the trade initiator must wait the cooldown, or both participants
+* ```/tradeconfig logCommandUsage <true/false>``` Sets whether successful command executions are logged to the server console
+
+### Permission Nodes
+Trade uses the [Fabric Permissions API](https://github.com/lucko/fabric-permissions-api) (bundled via BorisLib) for command permissions. Each node has a fallback vanilla permission level for servers without a permissions mod.
+
+#### Player Commands
+| Node | Default | Description |
+|------|---------|-------------|
+| `trade.trade.gui` | `ALL` | Open the trade GUI (`/trade` with no argument) |
+| `trade.trade.others` | `ALL` | Initiate a trade request with another player (`/trade <player>`) |
+| `trade.tradeaccept` | `ALL` | Accept an incoming trade request |
+| `trade.tradedeny` | `ALL` | Deny an incoming trade request |
+| `trade.tradecancel` | `ALL` | Cancel an outgoing trade request |
+
+#### Config
+Config commands are generated dynamically by BorisLib per config value.
+
+| Node | Default | Description |
+|------|---------|-------------|
+| `trade.config` | `GAMEMASTERS` | List all config values |
+| `trade.config.<name>.get` | `GAMEMASTERS` | Read a specific config value |
+| `trade.config.<name>.set` | `GAMEMASTERS` | Change a specific config value |
 
 ### Translation Credits:
 - Russian - Reset1712
