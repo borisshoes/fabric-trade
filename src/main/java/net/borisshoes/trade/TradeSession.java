@@ -57,10 +57,10 @@ public class TradeSession implements ContainerListener {
       buildBorder();
       
       for(int i=0; i<12;i++){
-         guiFrom.setSlot(yourSlots[i], new Slot(inv,i,0,0));
+         guiFrom.setSlot(yourSlots[i], new TradeSlot(inv,i,0,0));
          guiFrom.clearSlot(theirSlots[i]);
          
-         guiTo.setSlot(yourSlots[i], new Slot(inv,i+12,0,0));
+         guiTo.setSlot(yourSlots[i], new TradeSlot(inv,i+12,0,0));
          guiTo.clearSlot(theirSlots[i]);
       }
       

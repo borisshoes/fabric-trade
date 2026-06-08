@@ -9,9 +9,7 @@ import eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils;
 import net.borisshoes.borislib.config.ConfigManager;
 import net.borisshoes.borislib.config.ConfigSetting;
 import net.borisshoes.borislib.config.IConfigSetting;
-import net.borisshoes.borislib.config.values.BooleanConfigValue;
-import net.borisshoes.borislib.config.values.EnumConfigValue;
-import net.borisshoes.borislib.config.values.IntConfigValue;
+import net.borisshoes.borislib.config.values.*;
 import net.borisshoes.borislib.gui.GraphicalItem;
 import net.borisshoes.borislib.utils.TextUtils;
 import me.lucko.fabric.api.permissions.v0.Permissions;
@@ -64,6 +62,9 @@ public class Trade implements ModInitializer {
    
    public static final IConfigSetting<?> COOLDOWN_MODE_CFG = registerConfigSetting(new ConfigSetting<>(
          new EnumConfigValue<>("cooldown-mode", TradeCooldownMode.WHO_INITIATED, TradeCooldownMode.class)));
+   
+   public static final IConfigSetting<?> BLACKLIST_CFG = registerConfigSetting(new ConfigSetting<>(
+         new ListConfigValue<>("blacklist", List.of("#travelersbackpack:custom_travelers_backpack"), new StringConfigValue("blacklist",""))));
    
    public static final IConfigSetting<?> LOG_COMMAND_USAGE = registerConfigSetting(new ConfigSetting<>(
          new BooleanConfigValue("logCommandUsage", false)));
