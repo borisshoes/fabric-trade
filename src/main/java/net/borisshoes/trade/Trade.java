@@ -74,9 +74,9 @@ public class Trade implements ModInitializer {
       return setting;
    }
    
-   public static final GraphicalItem.GraphicElement GREEN_CONFIRM = registerGraphicItem(new GraphicalItem.GraphicElement(Identifier.fromNamespaceAndPath(MOD_ID, "trade_confirm_green"), Items.GREEN_CONCRETE, false));
-   public static final GraphicalItem.GraphicElement YELLOW_CONFIRM = registerGraphicItem(new GraphicalItem.GraphicElement(Identifier.fromNamespaceAndPath(MOD_ID, "trade_confirm_yellow"), Items.YELLOW_CONCRETE, false));
-   public static final GraphicalItem.GraphicElement RED_CONFIRM = registerGraphicItem(new GraphicalItem.GraphicElement(Identifier.fromNamespaceAndPath(MOD_ID, "trade_confirm_red"), Items.RED_CONCRETE, false));
+   public static final GraphicalItem.GraphicElement GREEN_CONFIRM = registerGraphicItem(new GraphicalItem.GraphicElement(Identifier.fromNamespaceAndPath(MOD_ID, "trade_confirm_green"), Items.CONCRETE.green(), false));
+   public static final GraphicalItem.GraphicElement YELLOW_CONFIRM = registerGraphicItem(new GraphicalItem.GraphicElement(Identifier.fromNamespaceAndPath(MOD_ID, "trade_confirm_yellow"), Items.CONCRETE.yellow(), false));
+   public static final GraphicalItem.GraphicElement RED_CONFIRM = registerGraphicItem(new GraphicalItem.GraphicElement(Identifier.fromNamespaceAndPath(MOD_ID, "trade_confirm_red"), Items.CONCRETE.red(), false));
    
    @Nullable
    private static CompletableFuture<Suggestions> filterSuggestionsByInput(SuggestionsBuilder builder, List<String> values) {

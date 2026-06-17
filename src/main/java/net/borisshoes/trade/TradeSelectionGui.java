@@ -3,6 +3,7 @@ package net.borisshoes.trade;
 import com.mojang.authlib.GameProfile;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import net.borisshoes.borislib.gui.*;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.server.MinecraftServer;
@@ -27,9 +28,9 @@ public class TradeSelectionGui extends PagedGui<ServerPlayer> {
    
    public TradeSelectionGui(ServerPlayer player){
       super(MenuType.GENERIC_9x6, player, getEntries(player.level().getServer(),player));
-      action1TextColor(ChatFormatting.AQUA.getColor().intValue());
-      action2TextColor(ChatFormatting.GREEN.getColor().intValue());
-      action3TextColor(ChatFormatting.YELLOW.getColor().intValue());
+      action1TextColor(TextColor.AQUA.getValue());
+      action2TextColor(TextColor.GREEN.getValue());
+      action3TextColor(TextColor.YELLOW.getValue());
       itemElemBuilder((p, i) -> {
          GameProfile profile = p.getGameProfile();
          GuiElementBuilder builder = new GuiElementBuilder(Items.PLAYER_HEAD).setProfile(profile);
@@ -67,7 +68,7 @@ public class TradeSelectionGui extends PagedGui<ServerPlayer> {
    private static class PlayerSort extends GuiSort<ServerPlayer> {
       public static final List<PlayerSort> SORTS = new ArrayList<>();
       
-      public static final PlayerSort ALPHABETICAL = new PlayerSort("gui.borislib.alphabetical", ChatFormatting.AQUA.getColor().intValue(),
+      public static final PlayerSort ALPHABETICAL = new PlayerSort("gui.borislib.alphabetical", TextColor.AQUA.getValue(),
             Comparator.comparing(ServerPlayer::getScoreboardName));
       
       private PlayerSort(String key, int color, Comparator<ServerPlayer> comparator){
@@ -88,7 +89,7 @@ public class TradeSelectionGui extends PagedGui<ServerPlayer> {
    private static class PlayerFilter extends GuiFilter<ServerPlayer> {
       public static final List<PlayerFilter> FILTERS = new ArrayList<>();
       
-      public static final PlayerFilter NONE = new PlayerFilter("gui.borislib.none", ChatFormatting.WHITE.getColor().intValue(), entry -> true);
+      public static final PlayerFilter NONE = new PlayerFilter("gui.borislib.none", TextColor.WHITE.getValue(), entry -> true);
       
       private PlayerFilter(String key, int color, Predicate<ServerPlayer> predicate){
          super(key, color, predicate);
